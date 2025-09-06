@@ -1,0 +1,525 @@
+================================================================================
+                    TALLY DATABASE LOADER - COMPREHENSIVE DATABASE STRUCTURE
+================================================================================
+
+OVERVIEW:
+---------
+The Tally Database Loader extracts data from Tally ERP and stores it in a relational 
+database structure. The system uses implicit relationships through GUID references 
+and name-based lookups rather than traditional foreign key constraints.
+
+KEY CONCEPTS:
+------------
+1. GUID-based Relationships: All entities have unique GUIDs that serve as implicit 
+   foreign keys
+2. Name-based References: Many tables store both name and GUID references
+3. Hierarchical Structure: Master data follows parent-child relationships
+4. Transaction-based: All business transactions are stored in transaction tables
+5. Incremental Sync: Supports both full and incremental data synchronization
+
+================================================================================
+                                MASTER DATA TABLES
+================================================================================
+
+1. CONFIG TABLE
+---------------
+Purpose: Stores system configuration and metadata
+Fields:
+- name (nvarchar(64), PK): Configuration key
+- value (nvarchar(1024)): Configuration value
+
+2. MST_GROUP (Account Groups)
+-----------------------------
+Purpose: Stores chart of accounts group hierarchy
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Group name
+- parent (nvarchar(1024)): Parent group name (hierarchical)
+- primary_group (nvarchar(1024)): Primary group classification
+- is_revenue (tinyint): Revenue group flag
+- is_deemedpositive (tinyint): Debit/Credit nature
+- affects_gross_profit (tinyint): Affects P&L calculation
+
+Relationships:
+- Self-referencing: parent -> name (hierarchical)
+- Referenced by: mst_ledger.parent
+
+3. MST_LEDGER (Chart of Accounts)
+---------------------------------
+Purpose: Stores individual ledger accounts
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Ledger name
+- parent (nvarchar(1024)): Parent group name
+- opening_balance (decimal(17,2)): Opening balance
+- closing_balance (decimal(17,2)): Closing balance
+- gstn (nvarchar(64)): GST registration number
+- bank_account_number (nvarchar(64)): Bank account details
+
+Relationships:
+- parent -> mst_group.name
+- Referenced by: All transaction tables via ledger field
+
+4. MST_VOUCHERTYPE (Voucher Types)
+----------------------------------
+Purpose: Defines different types of vouchers
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Voucher type name
+- parent (nvarchar(1024)): Parent voucher type
+- numbering_method (nvarchar(64)): Auto numbering method
+- affects_stock (tinyint): Affects inventory
+
+Relationships:
+- Self-referencing: parent -> name
+- Referenced by: trn_voucher.voucher_type
+
+5. MST_UOM (Units of Measure)
+-----------------------------
+Purpose: Stores measurement units
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Unit symbol
+- formalname (nvarchar(256)): Formal unit name
+- is_simple_unit (tinyint): Simple or compound unit
+- conversion (int): Conversion factor
+
+Relationships:
+- Referenced by: mst_stock_item.uom
+
+6. MST_GODOWN (Warehouses)
+--------------------------
+Purpose: Stores warehouse/location information
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Godown name
+- parent (nvarchar(1024)): Parent godown
+- address (nvarchar(1024)): Physical address
+
+Relationships:
+- Self-referencing: parent -> name
+- Referenced by: trn_inventory.godown, trn_batch.godown
+
+7. MST_STOCK_GROUP (Inventory Groups)
+------------------------------------
+Purpose: Hierarchical grouping of stock items
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Group name
+- parent (nvarchar(1024)): Parent group
+
+Relationships:
+- Self-referencing: parent -> name
+- Referenced by: mst_stock_item.parent
+
+8. MST_STOCK_ITEM (Inventory Items)
+-----------------------------------
+Purpose: Stores individual stock items
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Item name
+- parent (nvarchar(1024)): Stock group
+- uom (nvarchar(32)): Unit of measure
+- opening_balance (decimal(15,4)): Opening stock
+- closing_balance (decimal(15,4)): Closing stock
+- gst_hsn_code (nvarchar(64)): HSN code for GST
+
+Relationships:
+- parent -> mst_stock_group.name
+- uom -> mst_uom.name
+- Referenced by: trn_inventory.item, trn_batch.item
+
+9. MST_COST_CATEGORY (Cost Categories)
+--------------------------------------
+Purpose: Cost allocation categories
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Category name
+- allocate_revenue (tinyint): Revenue allocation flag
+- allocate_non_revenue (tinyint): Non-revenue allocation flag
+
+Relationships:
+- Referenced by: mst_cost_centre.category, trn_cost_category_centre.costcategory
+
+10. MST_COST_CENTRE (Cost Centers)
+----------------------------------
+Purpose: Cost centers for allocation
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Cost center name
+- parent (nvarchar(1024)): Parent category
+- category (nvarchar(1024)): Cost category
+
+Relationships:
+- parent -> mst_cost_category.name
+- category -> mst_cost_category.name
+- Referenced by: trn_cost_centre.costcentre
+
+11. MST_EMPLOYEE (Employee Master)
+----------------------------------
+Purpose: Employee information for payroll
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Employee name
+- parent (nvarchar(1024)): Department/category
+- id_number (nvarchar(256)): Employee ID
+- date_of_joining (date): Joining date
+- pan (nvarchar(32)): PAN number
+- uan (nvarchar(32)): UAN number
+
+Relationships:
+- parent -> mst_cost_category.name
+- Referenced by: trn_employee.employee_name, trn_payhead.employee_name
+
+12. MST_PAYHEAD (Payroll Components)
+------------------------------------
+Purpose: Payroll components and heads
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- name (nvarchar(1024)): Payhead name
+- parent (nvarchar(1024)): Parent ledger
+- pay_type (nvarchar(64)): Type of pay
+- calculation_type (nvarchar(32)): Calculation method
+
+Relationships:
+- parent -> mst_ledger.name
+- Referenced by: trn_payhead.payhead_name
+
+================================================================================
+                              TRANSACTION TABLES
+================================================================================
+
+1. TRN_VOUCHER (Voucher Header)
+-------------------------------
+Purpose: Main transaction header table
+Key Fields:
+- guid (varchar(64), PK): Unique voucher identifier
+- date (date): Transaction date
+- voucher_type (nvarchar(1024)): Type of voucher
+- voucher_number (nvarchar(64)): Voucher number
+- party_name (nvarchar(256)): Party/customer name
+- narration (nvarchar(4000)): Transaction description
+- is_invoice (tinyint): Invoice flag
+- is_accounting_voucher (tinyint): Accounting voucher flag
+- is_inventory_voucher (tinyint): Inventory voucher flag
+
+Relationships:
+- voucher_type -> mst_vouchertype.name
+- party_name -> mst_ledger.name
+- Referenced by: All transaction detail tables via guid
+
+2. TRN_ACCOUNTING (Accounting Entries)
+--------------------------------------
+Purpose: Double-entry accounting transactions
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- ledger (nvarchar(1024)): Ledger account name
+- amount (decimal(17,2)): Transaction amount
+- amount_forex (decimal(17,2)): Foreign currency amount
+- currency (nvarchar(16)): Currency code
+
+Relationships:
+- guid -> trn_voucher.guid
+- ledger -> mst_ledger.name
+
+3. TRN_INVENTORY (Inventory Entries)
+------------------------------------
+Purpose: Stock movement transactions
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- item (nvarchar(1024)): Stock item name
+- quantity (decimal(15,4)): Quantity
+- rate (decimal(15,4)): Rate per unit
+- amount (decimal(17,2)): Total amount
+- godown (nvarchar(1024)): Warehouse location
+- tracking_number (nvarchar(256)): Tracking reference
+
+Relationships:
+- guid -> trn_voucher.guid
+- item -> mst_stock_item.name
+- godown -> mst_godown.name
+
+4. TRN_COST_CENTRE (Cost Center Allocations)
+--------------------------------------------
+Purpose: Cost center-wise allocation of transactions
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- ledger (nvarchar(1024)): Ledger account
+- costcentre (nvarchar(1024)): Cost center name
+- amount (decimal(17,2)): Allocated amount
+
+Relationships:
+- guid -> trn_voucher.guid
+- ledger -> mst_ledger.name
+- costcentre -> mst_cost_centre.name
+
+5. TRN_BILL (Bill Tracking)
+---------------------------
+Purpose: Bill-wise tracking of transactions
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- ledger (nvarchar(1024)): Party ledger
+- name (nvarchar(1024)): Bill name/number
+- amount (decimal(17,2)): Bill amount
+- billtype (nvarchar(256)): Type of bill
+- bill_credit_period (int): Credit period in days
+
+Relationships:
+- guid -> trn_voucher.guid
+- ledger -> mst_ledger.name
+
+6. TRN_BANK (Banking Transactions)
+----------------------------------
+Purpose: Bank transaction details
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- ledger (nvarchar(1024)): Bank ledger
+- transaction_type (nvarchar(32)): Transaction type
+- instrument_number (nvarchar(1024)): Cheque/DD number
+- bank_name (nvarchar(64)): Bank name
+- amount (decimal(17,2)): Transaction amount
+
+Relationships:
+- guid -> trn_voucher.guid
+- ledger -> mst_ledger.name
+
+7. TRN_BATCH (Batch-wise Inventory)
+-----------------------------------
+Purpose: Batch-wise stock tracking
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- item (nvarchar(1024)): Stock item
+- name (nvarchar(1024)): Batch name
+- quantity (decimal(15,4)): Batch quantity
+- amount (decimal(17,2)): Batch value
+- godown (nvarchar(1024)): Storage location
+
+Relationships:
+- guid -> trn_voucher.guid
+- item -> mst_stock_item.name
+- godown -> mst_godown.name
+
+8. TRN_EMPLOYEE (Employee Transactions)
+---------------------------------------
+Purpose: Employee-wise transaction allocation
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- category (nvarchar(1024)): Cost category
+- employee_name (nvarchar(1024)): Employee name
+- amount (decimal(17,2)): Allocated amount
+
+Relationships:
+- guid -> trn_voucher.guid
+- category -> mst_cost_category.name
+- employee_name -> mst_employee.name
+
+9. TRN_PAYHEAD (Payroll Transactions)
+-------------------------------------
+Purpose: Payroll component transactions
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- category (nvarchar(1024)): Cost category
+- employee_name (nvarchar(1024)): Employee name
+- payhead_name (nvarchar(1024)): Payroll component
+- amount (decimal(17,2)): Amount
+
+Relationships:
+- guid -> trn_voucher.guid
+- category -> mst_cost_category.name
+- employee_name -> mst_employee.name
+- payhead_name -> mst_payhead.name
+
+================================================================================
+                              DERIVED TABLES
+================================================================================
+
+1. MST_GST_EFFECTIVE_RATE (GST Rates)
+-------------------------------------
+Purpose: Effective GST rates for items
+Key Fields:
+- item (nvarchar(1024)): Stock item name
+- applicable_from (date): Rate effective date
+- hsn_code (nvarchar(64)): HSN code
+- rate (decimal(9,4)): GST rate percentage
+
+Relationships:
+- item -> mst_stock_item.name
+
+2. MST_OPENING_BATCH_ALLOCATION (Opening Batches)
+-------------------------------------------------
+Purpose: Opening stock batch details
+Key Fields:
+- name (nvarchar(1024)): Batch name
+- item (nvarchar(1024)): Stock item
+- opening_balance (decimal(15,4)): Opening quantity
+- opening_rate (decimal(15,4)): Opening rate
+- godown (nvarchar(1024)): Storage location
+
+Relationships:
+- item -> mst_stock_item.name
+- godown -> mst_godown.name
+
+3. MST_OPENING_BILL_ALLOCATION (Opening Bills)
+----------------------------------------------
+Purpose: Opening bill details
+Key Fields:
+- ledger (nvarchar(1024)): Party ledger
+- opening_balance (decimal(17,4)): Opening balance
+- bill_date (date): Bill date
+- name (nvarchar(1024)): Bill name
+
+Relationships:
+- ledger -> mst_ledger.name
+
+4. TRN_CLOSINGSTOCK_LEDGER (Stock Valuations)
+---------------------------------------------
+Purpose: Stock valuation at different dates
+Key Fields:
+- ledger (nvarchar(1024)): Stock ledger
+- stock_date (date): Valuation date
+- stock_value (decimal(17,2)): Stock value
+
+Relationships:
+- ledger -> mst_ledger.name
+
+================================================================================
+                              RELATIONSHIP MAPPING
+================================================================================
+
+IMPLICIT RELATIONSHIPS (No Foreign Keys):
+
+1. HIERARCHICAL RELATIONSHIPS:
+   - mst_group.parent -> mst_group.name
+   - mst_ledger.parent -> mst_group.name
+   - mst_stock_group.parent -> mst_stock_group.name
+   - mst_stock_item.parent -> mst_stock_group.name
+   - mst_godown.parent -> mst_godown.name
+   - mst_cost_centre.parent -> mst_cost_category.name
+
+2. TRANSACTION RELATIONSHIPS:
+   - trn_voucher.guid -> All transaction detail tables.guid
+   - trn_voucher.voucher_type -> mst_vouchertype.name
+   - trn_voucher.party_name -> mst_ledger.name
+
+3. ACCOUNTING RELATIONSHIPS:
+   - trn_accounting.ledger -> mst_ledger.name
+   - trn_cost_centre.ledger -> mst_ledger.name
+   - trn_cost_centre.costcentre -> mst_cost_centre.name
+
+4. INVENTORY RELATIONSHIPS:
+   - trn_inventory.item -> mst_stock_item.name
+   - trn_inventory.godown -> mst_godown.name
+   - trn_batch.item -> mst_stock_item.name
+   - trn_batch.godown -> mst_godown.name
+
+5. PAYROLL RELATIONSHIPS:
+   - trn_employee.employee_name -> mst_employee.name
+   - trn_employee.category -> mst_cost_category.name
+   - trn_payhead.employee_name -> mst_employee.name
+   - trn_payhead.payhead_name -> mst_payhead.name
+
+================================================================================
+                              DATA FLOW PATTERN
+================================================================================
+
+1. MASTER DATA FLOW:
+   Tally ERP -> YAML Configuration -> CSV Export -> Database Tables
+   
+2. TRANSACTION FLOW:
+   Tally Vouchers -> Voucher Header (trn_voucher) -> Detail Tables
+   
+3. RELATIONSHIP RESOLUTION:
+   - Name-based lookups during data import
+   - GUID resolution for incremental sync
+   - Cascade updates for name changes
+
+================================================================================
+                              INCREMENTAL SYNC MECHANISM
+================================================================================
+
+1. ALTERID TRACKING:
+   - Each record has an AlterID for change tracking
+   - Last AlterID stored in config table
+   - Only changed records are synchronized
+
+2. CASCADE OPERATIONS:
+   - cascade_update: Updates related records when master changes
+   - cascade_delete: Deletes related records when master is deleted
+
+3. DIFF TABLES:
+   - _diff: Temporary table for change detection
+   - _delete: Temporary table for deletion tracking
+   - _vchnumber: Voucher number mapping
+
+================================================================================
+                              VOUCHER STRUCTURE EXAMPLE
+================================================================================
+
+For a Sales Voucher (as shown in the image):
+
+1. TRN_VOUCHER:
+   - guid: Unique voucher ID
+   - date: 1-Aug-25
+   - voucher_type: "SALES"
+   - voucher_number: "2800236/25-26"
+   - party_name: "LSI-MECH ENGINEERS PRIVATE LIMITED"
+   - narration: Transaction description
+
+2. TRN_ACCOUNTING:
+   - Multiple entries for each ledger affected
+   - Debit entries: Party account, Transport charges, etc.
+   - Credit entries: Sales account, Tax accounts, etc.
+
+3. TRN_INVENTORY:
+   - One entry per line item
+   - Item details: Name, quantity, rate, amount
+   - Godown information for stock location
+
+4. RELATED TABLES:
+   - trn_bill: For bill tracking
+   - trn_bank: For payment details
+   - trn_cost_centre: For cost allocation
+
+================================================================================
+                              KEY INSIGHTS
+================================================================================
+
+1. NO FOREIGN KEY CONSTRAINTS:
+   - Relationships maintained through application logic
+   - Name-based references with GUID fallback
+   - Flexible but requires careful data integrity management
+
+2. HIERARCHICAL DESIGN:
+   - Master data follows tree structures
+   - Parent-child relationships in groups, ledgers, stock items
+   - Supports unlimited nesting levels
+
+3. TRANSACTION INTEGRITY:
+   - All transactions linked via voucher GUID
+   - Double-entry accounting maintained
+   - Inventory and accounting synchronized
+
+4. SCALABILITY:
+   - Supports large volumes of transactions
+   - Incremental sync for performance
+   - Configurable data extraction
+
+5. FLEXIBILITY:
+   - Supports multiple companies
+   - Configurable field mapping
+   - Extensible table structure
+
+================================================================================
+                              CONCLUSION
+================================================================================
+
+The Tally Database Loader creates a comprehensive relational structure that 
+faithfully represents Tally ERP data while maintaining flexibility and 
+performance. The absence of foreign key constraints allows for easier data 
+migration and incremental synchronization, while the GUID-based system ensures 
+data integrity and relationship tracking.
+
+The system successfully bridges the gap between Tally's proprietary data format 
+and standard relational database structures, enabling powerful reporting and 
+analytics capabilities while preserving the complete business logic and 
+transaction history from the original Tally system.

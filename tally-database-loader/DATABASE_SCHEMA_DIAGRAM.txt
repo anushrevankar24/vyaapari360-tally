@@ -1,0 +1,423 @@
+================================================================================
+                    TALLY DATABASE LOADER - VISUAL SCHEMA DIAGRAM
+================================================================================
+
+                              MASTER DATA HIERARCHY
+                              =====================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              CONFIG                                         │
+│  ┌─────────────────┐                                                       │
+│  │ name (PK)       │ ← System configuration and metadata                   │
+│  │ value           │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              MST_GROUP                                      │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ guid (PK)       │  │ name            │  │ parent          │             │
+│  │ name            │  │ primary_group   │  │ is_revenue      │             │
+│  │ parent          │  │ is_deemedpositive│  │ affects_gross_profit│        │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│           │                                                                 │
+│           │ (self-reference)                                                │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Groups form     │ ← Hierarchical chart of accounts groups               │
+│  │ tree structure  │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              MST_LEDGER                                     │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ guid (PK)       │  │ name            │  │ parent          │             │
+│  │ name            │  │ opening_balance │  │ closing_balance │             │
+│  │ parent          │  │ gstn            │  │ bank_account_*  │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│           │                                                                 │
+│           │ parent → mst_group.name                                         │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Individual      │ ← Chart of accounts (customers, suppliers, etc.)      │
+│  │ ledger accounts │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              INVENTORY HIERARCHY
+                              ===================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MST_STOCK_GROUP                                   │
+│  ┌─────────────────┐  ┌─────────────────┐                                 │
+│  │ guid (PK)       │  │ name            │                                 │
+│  │ name            │  │ parent          │                                 │
+│  │ parent          │  │                 │                                 │
+│  └─────────────────┘  └─────────────────┘                                 │
+│           │                                                                 │
+│           │ (self-reference)                                                │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Stock groups    │ ← Hierarchical inventory grouping                     │
+│  │ (Raw Materials, │                                                       │
+│  │  Finished Goods)│                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MST_STOCK_ITEM                                    │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ guid (PK)       │  │ name            │  │ parent          │             │
+│  │ name            │  │ uom             │  │ opening_balance │             │
+│  │ parent          │  │ closing_balance │  │ gst_hsn_code    │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│           │                                                                 │
+│           │ parent → mst_stock_group.name                                   │
+│           │ uom → mst_uom.name                                              │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Individual      │ ← Stock items with specifications                     │
+│  │ stock items     │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              WAREHOUSE STRUCTURE
+                              ===================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              MST_GODOWN                                     │
+│  ┌─────────────────┐  ┌─────────────────┐                                 │
+│  │ guid (PK)       │  │ name            │                                 │
+│  │ name            │  │ parent          │                                 │
+│  │ parent          │  │ address         │                                 │
+│  └─────────────────┘  └─────────────────┘                                 │
+│           │                                                                 │
+│           │ (self-reference)                                                │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Warehouses/     │ ← Physical storage locations                          │
+│  │ Locations       │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              VOUCHER STRUCTURE
+                              =================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              TRN_VOUCHER                                    │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ guid (PK)       │  │ date            │  │ voucher_type    │             │
+│  │ date            │  │ voucher_number  │  │ party_name      │             │
+│  │ voucher_type    │  │ narration       │  │ is_invoice      │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│           │                                                                 │
+│           │ voucher_type → mst_vouchertype.name                             │
+│           │ party_name → mst_ledger.name                                    │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Transaction     │ ← Main voucher header (Sales, Purchase, etc.)         │
+│  │ Header          │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                    ┌───────────────────┼───────────────────┐
+                    │                   │                   │
+                    ▼                   ▼                   ▼
+┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
+│    TRN_ACCOUNTING       │ │    TRN_INVENTORY        │ │     TRN_BATCH           │
+│ ┌─────────────────────┐ │ │ ┌─────────────────────┐ │ │ ┌─────────────────────┐ │
+│ │ guid                │ │ │ │ guid                │ │ │ │ guid                │ │
+│ │ ledger              │ │ │ │ item                │ │ │ │ item                │ │
+│ │ amount              │ │ │ │ quantity            │ │ │ │ name                │ │
+│ │ amount_forex        │ │ │ │ rate                │ │ │ │ quantity            │ │
+│ └─────────────────────┘ │ │ │ amount              │ │ │ │ amount              │ │
+│                         │ │ │ godown              │ │ │ │ godown              │ │
+│ guid → trn_voucher.guid │ │ └─────────────────────┘ │ │ └─────────────────────┘ │
+│ ledger → mst_ledger.name│ │                         │ │                         │
+│                         │ │ guid → trn_voucher.guid │ │ guid → trn_voucher.guid │
+│ Double-entry accounting │ │ item → mst_stock_item   │ │ item → mst_stock_item   │
+│ entries                 │ │ godown → mst_godown     │ │ godown → mst_godown     │
+└─────────────────────────┘ │                         │ │                         │
+                            │ Stock movement entries  │ │ Batch-wise tracking     │
+                            └─────────────────────────┘ └─────────────────────────┘
+
+                              COST ALLOCATION
+                              ===============
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MST_COST_CATEGORY                                 │
+│  ┌─────────────────┐  ┌─────────────────┐                                 │
+│  │ guid (PK)       │  │ name            │                                 │
+│  │ name            │  │ allocate_revenue│                                 │
+│  │ allocate_revenue│  │ allocate_non_   │                                 │
+│  └─────────────────┘  │ revenue         │                                 │
+│           │            └─────────────────┘                                 │
+│           │                                                                 │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Cost Categories │ ← Revenue/Non-revenue allocation categories            │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MST_COST_CENTRE                                   │
+│  ┌─────────────────┐  ┌─────────────────┐                                 │
+│  │ guid (PK)       │  │ name            │                                 │
+│  │ name            │  │ parent          │                                 │
+│  │ parent          │  │ category        │                                 │
+│  └─────────────────┘  └─────────────────┘                                 │
+│           │                                                                 │
+│           │ parent → mst_cost_category.name                                 │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Cost Centers    │ ← Departments, Projects, etc.                         │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           TRN_COST_CENTRE                                   │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ guid            │  │ ledger          │  │ costcentre      │             │
+│  │ ledger          │  │ costcentre      │  │ amount          │             │
+│  │ costcentre      │  │ amount          │  │                 │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│           │                                                                 │
+│           │ guid → trn_voucher.guid                                         │
+│           │ ledger → mst_ledger.name                                        │
+│           │ costcentre → mst_cost_centre.name                               │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Cost allocation │ ← Transaction-wise cost center allocation             │
+│  │ entries         │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              PAYROLL STRUCTURE
+                              =================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MST_EMPLOYEE                                      │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ guid (PK)       │  │ name            │  │ parent          │             │
+│  │ name            │  │ id_number       │  │ date_of_joining │             │
+│  │ parent          │  │ pan             │  │ uan             │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│           │                                                                 │
+│           │ parent → mst_cost_category.name                                 │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Employee Master │ ← Employee information for payroll                    │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           MST_PAYHEAD                                       │
+│  ┌─────────────────┐  ┌─────────────────┐                                 │
+│  │ guid (PK)       │  │ name            │                                 │
+│  │ name            │  │ parent          │                                 │
+│  │ parent          │  │ pay_type        │                                 │
+│  └─────────────────┘  └─────────────────┘                                 │
+│           │                                                                 │
+│           │ parent → mst_ledger.name                                        │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Payroll         │ ← Payroll components (Basic, DA, HRA, etc.)          │
+│  │ Components      │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                    ┌───────────────────┼───────────────────┐
+                    │                   │                   │
+                    ▼                   ▼                   ▼
+┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
+│    TRN_EMPLOYEE         │ │    TRN_PAYHEAD          │ │   TRN_ATTENDANCE        │
+│ ┌─────────────────────┐ │ │ ┌─────────────────────┐ │ │ ┌─────────────────────┐ │
+│ │ guid                │ │ │ │ guid                │ │ │ │ guid                │ │
+│ │ category            │ │ │ │ category            │ │ │ │ employee_name       │ │
+│ │ employee_name       │ │ │ │ employee_name       │ │ │ │ attendancetype_name │ │
+│ │ amount              │ │ │ │ payhead_name        │ │ │ │ time_value          │ │
+│ └─────────────────────┘ │ │ │ amount              │ │ │ │ type_value          │ │
+│                         │ │ └─────────────────────┘ │ │ └─────────────────────┘ │
+│ guid → trn_voucher.guid │ │                         │ │                         │
+│ category → mst_cost_    │ │ guid → trn_voucher.guid │ │ guid → trn_voucher.guid │
+│ category.name           │ │ category → mst_cost_    │ │ employee_name →        │
+│ employee_name →         │ │ category.name           │ │ mst_employee.name      │
+│ mst_employee.name       │ │ employee_name →         │ │ attendancetype_name →  │
+│                         │ │ mst_employee.name       │ │ mst_attendance_type    │
+│ Employee-wise           │ │ payhead_name →          │ │                         │
+│ allocation              │ │ mst_payhead.name        │ │ Attendance tracking    │
+└─────────────────────────┘ │                         │ │                         │
+                            │ Payroll transactions    │ └─────────────────────────┘
+                            └─────────────────────────┘
+
+                              BILL TRACKING
+                              =============
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              TRN_BILL                                       │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ guid            │  │ ledger          │  │ name            │             │
+│  │ ledger          │  │ name            │  │ amount          │             │
+│  │ name            │  │ amount          │  │ billtype        │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│           │                                                                 │
+│           │ guid → trn_voucher.guid                                         │
+│           │ ledger → mst_ledger.name                                        │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Bill-wise       │ ← Bill tracking for receivables/payables              │
+│  │ tracking        │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              BANKING
+                              =======
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              TRN_BANK                                       │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │ guid            │  │ ledger          │  │ transaction_type│             │
+│  │ ledger          │  │ transaction_type│  │ instrument_*    │             │
+│  │ transaction_type│  │ instrument_*    │  │ bank_name       │             │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│           │                                                                 │
+│           │ guid → trn_voucher.guid                                         │
+│           │ ledger → mst_ledger.name                                        │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Banking         │ ← Bank transaction details (cheques, DDs, etc.)       │
+│  │ transactions    │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              DERIVED TABLES
+                              ==============
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        MST_GST_EFFECTIVE_RATE                              │
+│  ┌─────────────────┐  ┌─────────────────┐                                 │
+│  │ item            │  │ applicable_from │                                 │
+│  │ applicable_from │  │ hsn_code        │                                 │
+│  │ hsn_code        │  │ rate            │                                 │
+│  └─────────────────┘  └─────────────────┘                                 │
+│           │                                                                 │
+│           │ item → mst_stock_item.name                                      │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ GST rates       │ ← Effective GST rates for items                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      MST_OPENING_BATCH_ALLOCATION                          │
+│  ┌─────────────────┐  ┌─────────────────┐                                 │
+│  │ name            │  │ item            │                                 │
+│  │ item            │  │ opening_balance │                                 │
+│  │ opening_balance │  │ opening_rate    │                                 │
+│  └─────────────────┘  └─────────────────┘                                 │
+│           │                                                                 │
+│           │ item → mst_stock_item.name                                      │
+│           │ godown → mst_godown.name                                        │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Opening stock   │ ← Opening stock batch details                         │
+│  │ batches         │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                              RELATIONSHIP SUMMARY
+                              ====================
+
+KEY RELATIONSHIP PATTERNS:
+
+1. HIERARCHICAL (Self-referencing):
+   ┌─────────────┐    parent    ┌─────────────┐
+   │ mst_group   │ ────────────▶│ mst_group   │
+   │ (child)     │              │ (parent)    │
+   └─────────────┘              └─────────────┘
+
+2. MASTER-DETAIL:
+   ┌─────────────┐    parent    ┌─────────────┐
+   │ mst_ledger  │ ────────────▶│ mst_group   │
+   └─────────────┘              └─────────────┘
+
+3. TRANSACTION-HEADER:
+   ┌─────────────┐    guid      ┌─────────────┐
+   │ trn_voucher │ ◀───────────│ trn_accounting│
+   │ (header)    │              │ (detail)    │
+   └─────────────┘              └─────────────┘
+
+4. NAME-BASED REFERENCES:
+   ┌─────────────┐    ledger    ┌─────────────┐
+   │ trn_accounting│ ──────────▶│ mst_ledger  │
+   │ (name)      │              │ (name)      │
+   └─────────────┘              └─────────────┘
+
+5. GUID-BASED REFERENCES (Incremental):
+   ┌─────────────┐    _ledger   ┌─────────────┐
+   │ trn_accounting│ ──────────▶│ mst_ledger  │
+   │ (guid)      │              │ (guid)      │
+   └─────────────┘              └─────────────┘
+
+================================================================================
+                              DATA FLOW
+                              =========
+
+TALLY ERP → YAML CONFIG → CSV EXPORT → DATABASE TABLES
+
+1. Tally ERP stores data in proprietary format
+2. YAML configuration defines field mappings
+3. Data extracted to CSV files
+4. CSV data loaded into database tables
+5. Relationships maintained through name/GUID references
+
+================================================================================
+                              INCREMENTAL SYNC
+                              ================
+
+┌─────────────────┐    AlterID    ┌─────────────────┐
+│ Tally ERP       │ ────────────▶│ Database        │
+│ (Source)        │               │ (Target)        │
+└─────────────────┘               └─────────────────┘
+        │                                 │
+        │ Last AlterID                    │ Last AlterID
+        ▼                                 ▼
+┌─────────────────┐               ┌─────────────────┐
+│ Master: 12345   │               │ Master: 12340   │
+│ Trans: 67890    │               │ Trans: 67885    │
+└─────────────────┘               └─────────────────┘
+        │                                 │
+        │ Compare & Sync Only Changes     │
+        ▼                                 ▼
+┌─────────────────┐               ┌─────────────────┐
+│ Changed Records │ ────────────▶│ Updated Tables  │
+└─────────────────┘               └─────────────────┘
+
+================================================================================
+                              CONCLUSION
+                              ==========
+
+The Tally Database Loader creates a comprehensive relational structure that:
+
+1. Preserves all Tally ERP data relationships
+2. Maintains data integrity through GUID-based references
+3. Supports both full and incremental synchronization
+4. Enables powerful reporting and analytics
+5. Provides flexible data access patterns
+
+The absence of foreign key constraints allows for:
+- Easier data migration
+- Flexible relationship management
+- Incremental synchronization
+- Better performance during bulk operations
+
+This design successfully bridges Tally's proprietary format with standard 
+relational database structures while maintaining complete business logic 
+and transaction history.

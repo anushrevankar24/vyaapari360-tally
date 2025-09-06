@@ -1,0 +1,13 @@
+node_modules/
+private/
+csv/
+ssl/
+sync/
+dist/*.mjs.map
+import-log.txt
+error-log.txt
+*.zip
+*.exe
+*.duckdb
+bigquery-credentials.json
+adls-config.json
