@@ -1,347 +1,522 @@
-# Tally to Database Server: Data Loader Utility
-![logo](https://excelkida.com/image/github/tally-database-loader.png)
+# Tally Database Loader
 
+A comprehensive tool for synchronizing Tally ERP data with various database systems, supporting both single-company and multi-company setups with full and incremental sync capabilities.
 
+## 📋 Table of Contents
 
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Database Setup](#database-setup)
+- [Usage](#usage)
+- [Scripts Guide](#scripts-guide)
+- [Multi-Company Setup](#multi-company-setup)
+- [Incremental Sync](#incremental-sync)
+- [Troubleshooting](#troubleshooting)
+- [Security Notes](#security-notes)
 
-Commandline utility to load data into Database Server from Tally software, intended for further use by
-* MS Excel / Google Sheet (for tabular reports)
-* Power BI / Tableau / Google Data Studio (for dashboards)
+## ✨ Features
 
-## Index
-* [Version](version)
-* [Download](#download)
-* [Requirements](#requirements)
-* [Graphical User Interface](#graphical-user-interface)
-* [Tally XML Server](#tally-xml-server)
-* [Database Creation](#database-creation)
-* [Utility Installation](#utility-installation)
-* [Configuration Setup](#configuration-setup)
-    * Database Connection
-    * Tally Options
-* [Steps](#steps)
-* [Tutorial](#tutorial)
-* [Understanding Database Structure](docs/data-structure.md)
-* [Incremental / Full Sync](docs/incremental-sync.md)
-* [Tally Export Config](#tally-export-config)
-* [Commandline Options](docs/commandline-options.md)
-* [Logs](#logs)
-* [Reports](#reports)
-* [Google BigQuery](docs/google-bigquery.md)
-* [Develop Further](#develop-further)
-* [License](#license)
-* [Contact](#contact)
-* [Credits](#credits)
-* [Known Issues](#known-issues)
-* [Frequently Asked Questions](docs/faq.md)
-* [Release History](docs/release-history.md)
+- **Multi-Database Support**: PostgreSQL, MySQL, SQL Server, BigQuery, CSV
+- **Multi-Company Support**: Handle multiple companies and divisions
+- **Sync Types**: Full sync and Incremental sync
+- **Data Types**: Master data and Transaction data
+- **Real-time Sync**: Continuous synchronization with configurable frequency
+- **Comprehensive Logging**: Detailed logs for monitoring and debugging
+- **Flexible Configuration**: JSON-based configuration files
 
-<br><br>
+## 🔧 Prerequisites
 
-## Version
-Latest Version: **1.0.37**<br>
-Updated on: **09-Aug-2025**
+### System Requirements
+- **Node.js**: Version 16 or higher
+- **Database**: PostgreSQL 12+, MySQL 8+, SQL Server 2016+, or BigQuery
+- **Tally ERP**: Version 9.0 or higher with XML port enabled
 
-Note:
-1. I keep on fixing utility and adding fields into database. So you are requested to re-create existing databases and re-download utility folder
-2. Incremental sync now works for SQL Server / MySQL / PostgreSQL. Going forward two separate version of **database-structure** and **tally-export-config** will be maintained. Files with suffix **incremental** are to be used for **incremental** sync &amp; other are for **full** sync.
-3. Structure of config.json file is changed. Ensure to download fresh version of utility
+### Tally ERP Setup
+1. Open Tally ERP
+2. Go to **Gateway of Tally** → **F11** (Features) → **Advanced Configuration**
+3. Enable **XML Port** (usually port 9000)
+4. Ensure **Allow XML Requests** is set to **Yes**
 
+## 📦 Installation
 
-<br><br>
-
-## Download
-
-Database Loader Utility is portable, and does not have a setup wizard like we find for software installation. Zip archive of utility can be downloaded from below link. Kindly use open-source &amp; free software [7-zip file archiver](https://www.7-zip.org/download.html) to un-compress utility archive.
-
-[Download Database Loader Utility](https://excelkida.com/resource/tally-database-loader-utility-1.0.37.7z)
-
-Also, it is a command-line utility having no window interface (to keep it minimal and faster)
-
-<br><br>
-
-## Requirements
-Utility requires installation of following as a pre-requisite (along with download link)
-* Windows 10
-* [Tally Prime](https://tallysolutions.com/download/)
-* [Node JS](https://nodejs.org/en/)
-* Database Server (supports any of below)
-    * [Microsoft SQL Server](https://www.microsoft.com/en-ie/sql-server/sql-server-downloads/)
-    * [PostgreSQL](https://www.postgresql.org/download/)
-    * [MySQL](https://dev.mysql.com/downloads/mysql/)
-    * [MariaDB](https://mariadb.org/download/)
-    * [Google BigQuery](https://cloud.google.com/bigquery/)
-
-Free version of all the above Database Servers are available for download. Also all of them are available on popular cloud like Microsoft Azure / Google Cloud Platform / Amazon Web Services
-
-Preferred versions:
-* SQL Server - version 2019
-* MySQL - version 8.x
-* PostgreSQL - 11.x or above
-
-**Note:** *Utility and SQL Queries for reports are deviced considering latest version of the above Database Server. Running it in lower version might hamper few of the functionalities, as some SQL syntax were introduced in latest version*
-
-<br><br>
-
-## Graphical User Interface
-Utility is available in 2 types of interfaces
-1. Command-line based which can be invoked using **run.bat** file
-1. Browser-based interface which can be invoked using **run-gui.bat** file
-
-Both use the same back-end. File **run-gui.bat** uses browser-based interface which offers following features:
-* Ease of editing config.json values (without requiring Notepad)
-* Automatic default value setting based on dropdown to minimize invalid configuration values
-* Option to send configuration to utility without requiring it to save (suggested when user do no wish to save &amp; reveal password in config.json file)
-
-**Note:** *Please do not close the command-line window which acts as temporary webserver to interact with browser. Close it only after you close the browser tab of the utility.*
-
-<br><br>
-
-## Tally XML Server
-Tally has in-built XML Server capability, which can import/export data in/out of Tally. This utility sends export command to Tally along with report specification written in TDL (Tally Developer Language) in XML format. In response, Tally returns back the requested data (in XML format), which is then imported into Database Server. 
-
-* Help (F1) > Settings > Connectivity
-* Client/Server configuration
-* Set TallyPrime is acting as **Both**
-
-<br>
-
-**Note: Support for Tally.ERP 9 has been removed, to keep database aligned to Tally Prime. Kindly upgrade to Tally Prime.**
-
-<br><br>
-
-
-
-## Database Creation
-Database first needs to be created and then Tables needs to be created in which data from Tally will be loaded, before running utility. File **database-structure.sql** contains SQL for creating tables of database. Just ensure to create database using any of GUI Database Manager. That database name should be updated in **schema** property of *config.json*. Open-source database editor available freely are
-* [SQL Server Management Studio (SQL Server)](https://docs.microsoft.com/en-us/sql/ssms/download-sql-server-management-studio-ssms)
-* [pgAdmin (PostgreSQL Server)](https://www.pgadmin.org/download/)
-* [MySQL Workbench (MySQL Server)](https://dev.mysql.com/downloads/workbench/)
-* [Heidi SQL (SQL Server / MySQL / MariaDB / PostgreSQL)](https://www.heidisql.com/download.php/)
-
-Note: Database structure creation SQL script for PostgreSQL is avilable inside **platform/postgresql** folder of project. In future, database technology-wise separate SQL Script will be available for individual technologies.
-
-Utility support import into database server installed and hosted on
-* Same PC where Tally is
-* On any machine on LAN
-* Virtual Private Server
-* Cloud Database [ Microsoft Azure / Amazon Web Services (AWS) / Google Cloud Platform / Oracle Cloud ]
-
-<br><br>
-
-## Configuration Setup
-Utility contains a file **config.json** containing database connection and tally related settings.
-
-<br>
-
-### Database Connection
-Database Connection credentials needs to be set in the file in **database** section of *config.json*. A sample configuration file
-
-**SQL Server**
-```json
-"database": {
-    "technology": "mssql",
-    "server": "localhost",
-    "port": 1433,
-    "ssl": false,
-    "schema": "<database_name>",
-    "username": "sa",
-    "password": "<your_password>",
-    "loadmethod": "insert"
-}
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd tally-database-loader
 ```
-<br/>
 
-**MySQL / MariaDB Server**
+### 2. Install Dependencies
+```bash
+npm install
+```
+
+### 3. Build the Project
+```bash
+npm run build
+```
+
+### 4. Verify Installation
+```bash
+node dist/index.mjs --help
+```
+
+## ⚙️ Configuration
+
+### Configuration Files Structure
+
+The loader uses JSON configuration files to define database connections, Tally settings, and sync parameters.
+
+#### Basic Configuration Template
 ```json
-"database": {
-    "technology": "mysql",
-    "server": "localhost",
-    "port": 3306,
-    "ssl": false,
-    "schema": "<database_name>",
-    "username": "root",
-    "password": "<your_password>",
-    "loadmethod": "insert"
+{
+    "database": {
+        "technology": "postgres",
+        "server": "localhost",
+        "port": 5432,
+        "ssl": false,
+        "schema": "tallydb",
+        "username": "your_username",
+        "password": "your_password",
+        "loadmethod": "insert"
+    },
+    "tally": {
+        "definition": "tally-export-config.yaml",
+        "fromdate": "auto",
+        "todate": "auto",
+        "sync": "full",
+        "frequency": 0
+    }
 }
 ```
 
-**PostgreSQL Server**
+#### Multi-Company Configuration Template
 ```json
-"database": {
-    "technology": "postgres",
-    "server": "localhost",
-    "port": 5432,
-    "ssl": false,
-    "schema": "<database_name>",
-    "username": "postgres",
-    "password": "<your_password>",
-    "loadmethod": "insert"
+{
+    "database": {
+        "technology": "postgres",
+        "server": "localhost",
+        "port": 5432,
+        "ssl": false,
+        "schema": "tallydb",
+        "username": "your_username",
+        "password": "your_password",
+        "loadmethod": "insert"
+    },
+    "companies": [
+        {
+            "company_id": "uuid-here",
+            "company_name": "Your Company Name",
+            "divisions": [
+                {
+                    "division_id": "uuid-here",
+                    "division_name": "Division Name",
+                    "tally_url": "http://your-tally-server:9000"
+                }
+            ]
+        }
+    ],
+    "tally": {
+        "definition": "tally-export-config.yaml",
+        "fromdate": "auto",
+        "todate": "auto",
+        "sync": "full",
+        "frequency": 0
+    }
 }
 ```
 
-<br/>
+### Configuration Parameters
 
-| Settings | Value |
-| --- | --- |
-| technology | **mssql**: Microsoft SQL Server<br>**mysql**: MySQL Server or MariaDB Server<br>**postgres**: PostgreSQL Server<br>**bigquery**: Google BigQuery<br>**adls**:Azure Data Lake storage<br>**json**: JSON file<br>**csv**: Generate CSV dump for further import (below parameters of database connection are dummy when CSV setting is applied) |
-| server | IP Address of PC on which Database Server is hosted (**localhost** = same machine) |
-| port | Port number on which Database Server is listening<br>**mssql**: Default port is **1433**<br>**mysql**: Default port is **3306**<br>**postgres**: Default port is **5432** |
-| ssl | **true**: Secured (to be used only if Database Server is on Cloud)<br>**false**: Unsecured [*default*] (to be used when Database Server is on same machine / within LAN / within VPN)<br>Supported for mssql / postgres only |
-| schema | Database name in which to insert data |
-| username | Username<br>**mssql**: Default user is **sa** <br>**mysql**: Default user is **root**<br>**postgres**: Default user is **postgres** |
-| password | Password for corresponding user. It is set during installation of Database Server.<br>*Note: Trusted Login (password-less) of SQL Server not supported by this utility* |
-| loadmethod | **insert**: loads rows in database tables using SQL query with multiple rows. This is most compatible method which works everywhere (Compatibility: **High** / Performance: **Slow** ) <br> **file**: loads rows in database table using file based loading method. This method works only when database server and utility is running on same machine. So this method is not compatible with Cloud databases (Compatibility: **Low** / Performance: **Fast** ) |
+#### Database Configuration
+- **technology**: Database type (`postgres`, `mysql`, `mssql`, `bigquery`, `csv`)
+- **server**: Database server hostname or IP
+- **port**: Database port number
+- **ssl**: Enable SSL connection (true/false)
+- **schema**: Database schema name
+- **username**: Database username
+- **password**: Database password
+- **loadmethod**: Data loading method (`insert` or `bulk`)
 
-Kindly override configurations, as per respective Database Server setup
+#### Tally Configuration
+- **definition**: YAML file defining data export structure
+- **fromdate**: Start date for data sync (`auto` or `YYYY-MM-DD`)
+- **todate**: End date for data sync (`auto` or `YYYY-MM-DD`)
+- **sync**: Sync type (`full` or `incremental`)
+- **frequency**: Continuous sync frequency in minutes (0 for one-time sync)
 
-**Note**: *Utility supports SQL Server connection via TCP/IP port only. This option is disabled by default, which needs to be enabled. Kindly refer FAQ where it has been elaborated in detail along with screenshots*
- (applicable for Microsoft SQL Server only)
+## 🗄️ Database Setup
 
-<br>
+### PostgreSQL Setup
 
-### Tally Options
-Few of the options of Tally may need modification, if default settings of Tally are specifically over-ridden (due to port clashes). A sample configuration of tally is demonstrated as below
-
-## Full sync
-
-```json
-"tally": {
-     "definition": "tally-export-config.yaml",
-     "server": "localhost",
-     "port": 9000,
-     "fromdate" : "20230401",
-     "todate" : "20240331",
-     "sync": "full",
-     "frequency": 0,
-     "company": ""
-}
+#### 1. Create Database
+```sql
+CREATE DATABASE tallydb;
 ```
 
-## Incremental sync
+#### 2. Create Database Structure
+```bash
+# For full sync
+psql -h localhost -p 5432 -U your_username -d tallydb -f database-structure.sql
 
-```json
-"tally": {
-     "definition": "tally-export-config-incremental.yaml",
-     "server": "localhost",
-     "port": 9000,
-     "fromdate" : "auto",
-     "todate" : "auto",
-     "sync": "incremental",
-     "frequency": 5,
-     "company": ""
-}
+# For multi-company full sync
+psql -h localhost -p 5432 -U your_username -d tallydb -f database-structure-multi-company-full.sql
+
+# For multi-company incremental sync
+psql -h localhost -p 5432 -U your_username -d tallydb -f database-structure-multi-company-incremental.sql
 ```
 
-| Setting | Value |
-| --- | --- |
-| definition | Name of export config file in the utility folder. This setting is to be used for easy switching between incremental and full sync, as both the files contains different structure  |
-| server | IP Address or Computer Name on which Tally XML Server is running (**localhost** is default value equivalent of IP Address 127.0.0.1). Change this if you need to capture data from a Tally running on different PC on your LAN |
-| port | By default Tally runs XML Server on port number **9000**. Modify this if you have assigned different port number in Tally XML Server settings (typically done when you want run Tally.ERP 9 and Tally Prime both at a same time parallely, where you will be changing this port number) |
-| master / transaction | **true** = Export master/transaction data from Tally (*default*) <br> **false** = Skip master/transaction data |
-| fromdate / todate | **YYYYMMDD** = Period from/to for export of transaction and opening balance (in 8 digit format) <br> **auto** = This will export complete transactions (irrespective of selected Financial Year) from Tally by auto-detection of First & Last date of transaction |
-| sync | **full** = Sync complete data from Tally to Database Server (*default*)<br> **incremental** = Sync only that data which was added/modified/delete from last sync |
-| frequency | ping frequency in minutes to Tally to monitor changes in data and trigger sync (0 = off i.e. just run sync once and close it) |
-| company | Name of the company from which to export data or leave it blank to export from Active company of Tally (this parameter is intended for use when user needs to export data from specific company irrespective of it is active or not. Setup a powershell script to run a loop when multiple companies needs to be targeted one-by-one) |
-
-<br><br>
-
-## Steps
-1. Create database in Database Server along with tables inside it (use **database-structure.sql** to create tables)  [ignore if already created]
-1. Ensure options are properly set in **config.json**
-1. Ensure Tally is running and target company from which to export data is Active
-1. Run the file **run.bat**
-1. Commandline window will open, attempt to import data and will get closed after import/error
-1. Check for import status in **import-log.txt** file and errors (if any) in **error-log.txt** file
-
-<br><br>
-
-## Tutorial
-
-YouTube tutorial video are availabe (link below)
-
-**SQL Server**
-<br>
-
-[![YouTube tutorial SQL Server](https://img.youtube.com/vi/Am0uspXtTzM/0.jpg)](https://www.youtube.com/watch?v=Am0uspXtTzM)
-
-<br>
-
-**MySQL Server**
-<br>
-
-[![YouTube tutorial MySQL Server](https://img.youtube.com/vi/_bXc54bKTlI/0.jpg)](https://www.youtube.com/watch?v=_bXc54bKTlI)
-
-<br><br>
-
-## Tally Export Config
-Certain times we may require to add or remove any of the fields from export (to add user defined fields created by TDL Developer in Tally customisations). So this export specification is defined in **tally-export-config.yaml** file in YAML format. This file is divided into Master and Transaction, containing multiple tables in it. To understand structure and nomenclature, an example of this is given below
-
-```yaml
-master:
-    - name: mst_group
-      collection: Group
-      fields:
-        - name: guid
-          field: Guid
-          type: text
+#### 3. Insert Company/Division Data (Multi-Company)
+```bash
+psql -h localhost -p 5432 -U your_username -d tallydb -f insert-company-division-data.sql
 ```
 
-name: mst_group (**Database Table name**)<br>
-collection: Group (**Tally Collection name**)<br>
-name: guid (**Database Column name**)<br>
-field: Guid (**Tally field name**)<br>
-type: **text / logical / date / number / amount / quantity / rate / custom**
+### MySQL Setup
 
-**amount:** Credit = positive / Debit = negative<br>
-**quantity:** In Quantity = positive / Out Quantity = negative<br>
-**rate:** Rate type of data (is always positive)<br>
-**custom:** Any custom expression in TDL format
+#### 1. Create Database
+```sql
+CREATE DATABASE tallydb;
+```
 
+#### 2. Create Database Structure
+```bash
+# For full sync
+mysql -h localhost -P 3306 -u your_username -p tallydb < database-structure.sql
 
-<br><br>
+# For multi-company full sync
+mysql -h localhost -P 3306 -u your_username -p tallydb < database-structure-multi-company-full.sql
 
-## Logs
-Utility creates log of import specifying how many rows in each tables were loaded. This log can be found in **import-log.txt** file. If any error occurs, then details of error(s) are logged in **error-log.txt** file
+# For multi-company incremental sync
+mysql -h localhost -P 3306 -u your_username -p tallydb < database-structure-multi-company-incremental.sql
+```
 
-<br><br>
+### SQL Server Setup
 
-## Reports
-Project hosts library of SQL Queries to generate some popularly used reports, required for preparing Dashboards in Microsoft Power BI and Google Data Studio. Due to minor difference in SQL syntax & functions of SQL Server and MySQL, SQL for same report is provided for both of these Server platforms.
+#### 1. Create Database
+```sql
+CREATE DATABASE tallydb;
+```
 
-Author actively supports **Google BigQuery** (fully cloud-based solution of Google), and even shared equivalent SQL query for BiQuery. BigQuery acts as a input for Google Data Studio Dashboards and also supports easy export of tabular output to Google Sheets. Interested users can sign-up for a free [Google Cloud account](https://cloud.google.com) and use BigQuery with free daily limits
+#### 2. Create Database Structure
+```bash
+# For full sync
+sqlcmd -S localhost -d tallydb -i database-structure.sql
 
-<br><br>
+# For multi-company full sync
+sqlcmd -S localhost -d tallydb -i database-structure-multi-company-full.sql
 
+# For multi-company incremental sync
+sqlcmd -S localhost -d tallydb -i database-structure-multi-company-incremental.sql
+```
 
-## Develop Further
-If you intend to develop and modify this utility further to next level for your use-case, then you can clone this project from Git and run the project as below
-1. Clone the project repository
-1. Install Visual Studio and open the project repository folder
-1. Install required npm packages by following command **npm install**
-1. Install global instance of typescript compiler available on Node Package Manager by following command **npm install typescript -g**
-1. Run the project in Visual Studio code (**launch.json** file already provided in **.vscode** folder to run it with required settings)
+## 🚀 Usage
 
-<br><br>
+### Command Line Usage
 
-## License
-This project is under MIT license. You are free to use this utility for commercial & educational purpose.
+#### Basic Sync
+```bash
+node dist/index.mjs --config config.json
+```
 
-<br><br>
+#### Multi-Company Sync
+```bash
+node dist/index.mjs --config config-multi-company.json
+```
 
-## Contact
-Project developed & maintained by: **Dhananjay Gokhale**
+#### Command Line Overrides
+```bash
+node dist/index.mjs --config config.json --tally-sync incremental --tally-fromdate 2024-01-01 --tally-todate 2024-12-31
+```
 
-For any query email to **info@excelkida.com** or Whatsapp on **(+91) 90284-63366**
+### Available Command Line Parameters
 
-<br><br>
+- `--config <file>`: Configuration file path
+- `--tally-sync <type>`: Sync type (full/incremental)
+- `--tally-fromdate <date>`: Start date (YYYY-MM-DD)
+- `--tally-todate <date>`: End date (YYYY-MM-DD)
+- `--tally-frequency <minutes>`: Continuous sync frequency
+- `--tally-master <true/false>`: Import master data
+- `--tally-transaction <true/false>`: Import transaction data
+- `--tally-truncate <true/false>`: Truncate tables before import
 
-## Credits
-Bug fixes or enhancements from various contributors
+## 📜 Scripts Guide
 
-* [CA Venugopal Gella](https://github.com/gellavenugopal) - Fixing of Tally Prime 2.0.1 export issue
+### 1. `run-full-sync-local.sh`
 
-## Known Issues
-* When multiple companies are selected in Tally &amp; specific company name is specified in config.json, it has been observed that in a rare case (especially on Windows Server), Tally fails to fetch data from that target company &amp; internally produces an error that specified company is not loaded.
-* It has been observed that sometimes when Tally remain running for several days on PC then in a rare case Tally fails to return back updated / latest data (especially on Windows Server) &amp; you may have to restart Tally.
-* If you have configured automatic sync of data via Windows Task Schedular, then make sure you don't log-off, but just disconnect as Tally is graphical based software.
+**Purpose**: Sets up and runs a full sync to a local PostgreSQL database.
+
+**What it does**:
+1. Creates the `tallydb` database if it doesn't exist
+2. Drops all existing tables
+3. Creates fresh tables using the multi-company full structure
+4. Inserts company and division data
+5. Installs dependencies and builds the project
+6. Runs the full sync
+
+**Usage**:
+```bash
+chmod +x run-full-sync-local.sh
+./run-full-sync-local.sh
+```
+
+**Prerequisites**:
+- PostgreSQL server running on localhost:5432
+- User `anush` with password `anush24` (modify script for your credentials)
+- Tally ERP running with XML port enabled
+
+**Configuration Required**:
+- Update the script with your PostgreSQL credentials
+- Ensure `config-multi-company-full-localdb.json` exists and is configured
+
+### 2. `run-full-sync-supabase.example.sh`
+
+**Purpose**: Example script for setting up and running a full sync to Supabase.
+
+**What it does**:
+1. Drops all existing tables in the public schema
+2. Creates fresh tables using the multi-company full structure
+3. Inserts company and division data
+4. Installs dependencies and builds the project
+5. Runs the full sync
+
+**Usage**:
+```bash
+# Copy the example file
+cp run-full-sync-supabase.example.sh run-full-sync-supabase.sh
+
+# Edit the file with your Supabase credentials
+nano run-full-sync-supabase.sh
+
+# Make it executable and run
+chmod +x run-full-sync-supabase.sh
+./run-full-sync-supabase.sh
+```
+
+**Configuration Required**:
+- Replace `your-supabase-host.supabase.co` with your actual Supabase host
+- Replace `your-password` with your actual Supabase password
+- Ensure `config-multi-company-supabase-full.json` exists and is configured
+
+### 3. `run-incremental-sync-local.sh`
+
+**Purpose**: Runs incremental sync to a local database.
+
+**What it does**:
+1. Validates that all required configuration files exist
+2. Runs the incremental sync process
+3. Only processes changed data since the last sync
+
+**Usage**:
+```bash
+chmod +x run-incremental-sync-local.sh
+./run-incremental-sync-local.sh
+```
+
+**Prerequisites**:
+- Database must be set up with incremental structure
+- Previous sync must have been completed (for AlterID tracking)
+- `config-multi-company-incrmental-localdb.json` must exist
+
+**Configuration Required**:
+- Ensure `config-multi-company-incrmental-localdb.json` is configured
+- Ensure `database-structure-multi-company-incremental.sql` exists
+- Ensure `tally-export-config-multi-company-incremental.yaml` exists
+
+### 4. `setup-incremental-db.sh`
+
+**Purpose**: Sets up a new database specifically for incremental sync testing.
+
+**What it does**:
+1. Creates a new database `tallydb_incremental`
+2. Creates the incremental database structure
+3. Inserts company and division data
+
+**Usage**:
+```bash
+chmod +x setup-incremental-db.sh
+./setup-incremental-db.sh
+```
+
+**Prerequisites**:
+- PostgreSQL server running on localhost:5432
+- User `anush` with password `anush24` (modify script for your credentials)
+
+## 🏢 Multi-Company Setup
+
+### 1. Generate UUIDs for Companies and Divisions
+
+```bash
+# Generate UUIDs (you can use online UUID generators)
+# Company ID: bc90d453-0c64-4f6f-8bbe-dca32aba40d1
+# Division ID: b38bfb72-3dd7-4aa5-b970-71b919d5ded4
+```
+
+### 2. Update Configuration Files
+
+#### Update `insert-company-division-data.sql`
+```sql
+INSERT INTO mst_company (company_id, company_name) VALUES 
+('bc90d453-0c64-4f6f-8bbe-dca32aba40d1', 'Your Company Name');
+
+INSERT INTO mst_division (division_id, company_id, division_name, tally_url) VALUES 
+('b38bfb72-3dd7-4aa5-b970-71b919d5ded4', 'bc90d453-0c64-4f6f-8bbe-dca32aba40d1', 'Division Name', 'http://your-tally-server:9000');
+```
+
+#### Update Configuration Files
+- `config-multi-company-full-localdb.json`
+- `config-multi-company-incremental-localdb.json`
+- `config-multi-company-supabase-full.json`
+
+### 3. Set Up Tally URLs
+
+Ensure each division has a unique Tally URL:
+- `http://server1:9000` for Division 1
+- `http://server2:9000` for Division 2
+- Or use ngrok for remote access: `https://your-ngrok-url.ngrok-free.app`
+
+## 🔄 Incremental Sync
+
+### How Incremental Sync Works
+
+1. **AlterID Tracking**: Tally assigns unique AlterIDs to each record
+2. **Change Detection**: Compares current AlterID with last synced AlterID
+3. **Selective Import**: Only imports records with AlterID > last synced AlterID
+4. **Change Processing**: Handles inserts, updates, and deletes properly
+
+### Incremental Sync Requirements
+
+1. **Database Structure**: Must use `database-structure-multi-company-incremental.sql`
+2. **AlterID Columns**: All tables must have `alterid` columns
+3. **Temporary Tables**: `_diff`, `_delete`, `_vchnumber` tables must exist
+4. **Previous Sync**: At least one full sync must have been completed
+
+### Incremental Sync Process
+
+1. **First Run**: Imports all data (acts like full sync)
+2. **Subsequent Runs**: Only imports changed data
+3. **Change Detection**: Uses AlterID comparison
+4. **Data Integrity**: Handles cascading updates and deletes
+
+### Setting Up Incremental Sync
+
+```bash
+# 1. Set up incremental database
+./setup-incremental-db.sh
+
+# 2. Run first sync (full import)
+./run-incremental-sync-new-db.sh
+
+# 3. Subsequent runs (incremental only)
+./run-incremental-sync-new-db.sh
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### 1. Connection Issues
+```
+Error: Unable to connect with Tally at http://localhost:9000
+```
+**Solution**: 
+- Ensure Tally ERP is running
+- Check XML port is enabled (F11 → Advanced Configuration)
+- Verify the URL in configuration
+
+#### 2. Database Connection Issues
+```
+Error: Connection to database failed
+```
+**Solution**:
+- Verify database credentials
+- Check if database server is running
+- Ensure database exists
+
+#### 3. Permission Issues
+```
+Error: Permission denied for table
+```
+**Solution**:
+- Grant proper permissions to database user
+- Ensure user has CREATE, INSERT, UPDATE, DELETE permissions
+
+#### 4. No Data Found
+```
+No change found for Company - Division
+```
+**Solution**:
+- Check if Tally has data in the specified date range
+- Verify company is open in Tally
+- Check if XML port is accessible
+
+### Log Files
+
+- **import-log.txt**: General import logs
+- **error-log.txt**: Error logs and stack traces
+
+### Debug Mode
+
+Enable detailed logging by setting environment variable:
+```bash
+export DEBUG=true
+node dist/index.mjs --config config.json
+```
+
+## 🔒 Security Notes
+
+### Configuration Files
+
+- **Never commit** actual configuration files with credentials
+- Use `.example` files for templates
+- Add sensitive files to `.gitignore`
+
+### Database Security
+
+- Use strong passwords
+- Enable SSL connections for remote databases
+- Restrict database user permissions
+- Use environment variables for sensitive data
+
+### Network Security
+
+- Use VPN for remote Tally connections
+- Enable firewall rules for database ports
+- Use HTTPS for remote Tally URLs (ngrok)
+
+## 📚 Additional Resources
+
+### Configuration Examples
+
+- `config.example.json`: Basic configuration template
+- `config-multi-company.example.json`: Multi-company configuration template
+- `config-multi-company-full-localdb.example.json`: Local database full sync
+- `config-multi-company-incremental-localdb.example.json`: Local database incremental sync
+
+### Database Structures
+
+- `database-structure.sql`: Single-company structure
+- `database-structure-multi-company-full.sql`: Multi-company full sync structure
+- `database-structure-multi-company-incremental.sql`: Multi-company incremental sync structure
+
+### Documentation
+
+- `MULTI_COMPANY_SETUP.md`: Detailed multi-company setup guide
+- `TALLY_DATABASE_STRUCTURE_DOCUMENTATION.txt`: Database structure documentation
+- `DATABASE_SCHEMA_DIAGRAM.txt`: Database schema diagram
+
+## 🤝 Support
+
+For issues and questions:
+1. Check the troubleshooting section
+2. Review log files
+3. Check Tally ERP XML port configuration
+4. Verify database connectivity
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+---
+
+**Note**: Always test with a small dataset first before running full production syncs. Ensure you have proper backups of your database before running any sync operations.
