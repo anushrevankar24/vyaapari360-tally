@@ -2,6 +2,29 @@
                     TALLY DATABASE LOADER - VISUAL SCHEMA DIAGRAM
 ================================================================================
 
+                             MULTI-COMPANY CONTEXT
+                             ======================
+- All tables include: company_id, division_id
+- Foreign keys:
+  - company_id → mst_company.company_id
+  - division_id → mst_division.division_id (and mst_division.company_id → mst_company.company_id)
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              MST_COMPANY                                    │
+│  ┌─────────────────┐                                                       │
+│  │ company_id (PK) │  │ company_name                                      │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              MST_DIVISION                                   │
+│  ┌─────────────────┐  ┌─────────────────┐                                   │
+│  │ division_id (PK)│  │ company_id (FK) │                                   │
+│  │ division_name   │  │ tally_url       │                                   │
+│  └─────────────────┘  └─────────────────┘                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
                               MASTER DATA HIERARCHY
                               =====================
 
@@ -17,7 +40,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              MST_GROUP                                      │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │ guid (PK)       │  │ name            │  │ parent          │             │
+│  │ guid            │  │ name            │  │ parent          │             │
 │  │ name            │  │ primary_group   │  │ is_revenue      │             │
 │  │ parent          │  │ is_deemedpositive│  │ affects_gross_profit│        │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
@@ -34,7 +57,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              MST_LEDGER                                     │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │ guid (PK)       │  │ name            │  │ parent          │             │
+│  │ guid            │  │ name            │  │ parent          │             │
 │  │ name            │  │ opening_balance │  │ closing_balance │             │
 │  │ parent          │  │ gstn            │  │ bank_account_*  │             │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
@@ -53,7 +76,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MST_STOCK_GROUP                                   │
 │  ┌─────────────────┐  ┌─────────────────┐                                 │
-│  │ guid (PK)       │  │ name            │                                 │
+│  │ guid            │  │ name            │                                 │
 │  │ name            │  │ parent          │                                 │
 │  │ parent          │  │                 │                                 │
 │  └─────────────────┘  └─────────────────┘                                 │
@@ -71,7 +94,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MST_STOCK_ITEM                                    │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │ guid (PK)       │  │ name            │  │ parent          │             │
+│  │ guid            │  │ name            │  │ parent          │             │
 │  │ name            │  │ uom             │  │ opening_balance │             │
 │  │ parent          │  │ closing_balance │  │ gst_hsn_code    │             │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
@@ -91,7 +114,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              MST_GODOWN                                     │
 │  ┌─────────────────┐  ┌─────────────────┐                                 │
-│  │ guid (PK)       │  │ name            │                                 │
+│  │ guid            │  │ name            │                                 │
 │  │ name            │  │ parent          │                                 │
 │  │ parent          │  │ address         │                                 │
 │  └─────────────────┘  └─────────────────┘                                 │
@@ -110,7 +133,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              TRN_VOUCHER                                    │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │ guid (PK)       │  │ date            │  │ voucher_type    │             │
+│  │ guid            │  │ date            │  │ voucher_type    │             │
 │  │ date            │  │ voucher_number  │  │ party_name      │             │
 │  │ voucher_type    │  │ narration       │  │ is_invoice      │             │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
@@ -151,7 +174,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MST_COST_CATEGORY                                 │
 │  ┌─────────────────┐  ┌─────────────────┐                                 │
-│  │ guid (PK)       │  │ name            │                                 │
+│  │ guid            │  │ name            │                                 │
 │  │ name            │  │ allocate_revenue│                                 │
 │  │ allocate_revenue│  │ allocate_non_   │                                 │
 │  └─────────────────┘  │ revenue         │                                 │
@@ -167,7 +190,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MST_COST_CENTRE                                   │
 │  ┌─────────────────┐  ┌─────────────────┐                                 │
-│  │ guid (PK)       │  │ name            │                                 │
+│  │ guid            │  │ name            │                                 │
 │  │ name            │  │ parent          │                                 │
 │  │ parent          │  │ category        │                                 │
 │  └─────────────────┘  └─────────────────┘                                 │
@@ -179,23 +202,45 @@
 │  └─────────────────┘                                                       │
 └─────────────────────────────────────────────────────────────────────────────┘
                                         │
-                                        ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           TRN_COST_CENTRE                                   │
+                    ┌───────────────────┼───────────────────┐
+                    │                   │                   │
+                    ▼                   ▼                   ▼
+┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
+│    TRN_COST_CENTRE                                   │ │    TRN_COST_CATEGORY_CENTRE                                   │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │ guid            │  │ ledger          │  │ costcentre      │             │
-│  │ ledger          │  │ costcentre      │  │ amount          │             │
-│  │ costcentre      │  │ amount          │  │                 │             │
+│  │ guid            │  │ ledger          │  │ costcategory     │             │
+│  │ ledger          │  │ costcategory    │  │ costcentre      │             │
+│  │ costcentre      │  │ amount          │  │ amount          │             │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
 │           │                                                                 │
 │           │ guid → trn_voucher.guid                                         │
 │           │ ledger → mst_ledger.name                                        │
-│           │ costcentre → mst_cost_centre.name                               │
+│           │ costcategory → mst_cost_category.name                            │
+│           │ costcentre → mst_cost_centre.name                                │
 │           ▼                                                                 │
 │  ┌─────────────────┐                                                       │
-│  │ Cost allocation │ ← Transaction-wise cost center allocation             │
-│  │ entries         │                                                       │
+│  │ Category-centre │ ← Allocation by category and centre                    │
+│  │ allocation      │                                                       │
 │  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│           TRN_COST_INVENTORY_CATEGORY_CENTRE                                │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────┐ │
+│  │ guid            │  │ ledger          │  │ item            │  │ costcat │ │
+│  │ ledger          │  │ item            │  │ costcategory    │  │ costcen │ │
+│  │ item            │  │ costcentre      │  │ costcentre      │  │ amount  │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────┘ │
+│           │                                                                 │
+│           │ guid → trn_voucher.guid                                         │
+│           │ ledger → mst_ledger.name                                        │
+│           │ item → mst_stock_item.name                                      │
+│           │ costcategory → mst_cost_category.name                            │
+│           │ costcentre → mst_cost_centre.name                                │
+│           ▼                                                                 │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │ Item-category-centre allocation                                      │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
 
                               PAYROLL STRUCTURE
@@ -204,7 +249,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MST_EMPLOYEE                                      │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │ guid (PK)       │  │ name            │  │ parent          │             │
+│  │ guid            │  │ name            │  │ parent          │             │
 │  │ name            │  │ id_number       │  │ date_of_joining │             │
 │  │ parent          │  │ pan             │  │ uan             │             │
 │  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
@@ -220,7 +265,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           MST_PAYHEAD                                       │
 │  ┌─────────────────┐  ┌─────────────────┐                                 │
-│  │ guid (PK)       │  │ name            │                                 │
+│  │ guid            │  │ name            │                                 │
 │  │ name            │  │ parent          │                                 │
 │  │ parent          │  │ pay_type        │                                 │
 │  └─────────────────┘  └─────────────────┘                                 │
@@ -249,12 +294,12 @@
 │ category → mst_cost_    │ │ guid → trn_voucher.guid │ │ guid → trn_voucher.guid │
 │ category.name           │ │ category → mst_cost_    │ │ employee_name →        │
 │ employee_name →         │ │ category.name           │ │ mst_employee.name      │
-│ mst_employee.name       │ │ employee_name →         │ │ attendancetype_name →  │
-│                         │ │ mst_employee.name       │ │ mst_attendance_type    │
+│ mst_employee.name       │ │ employee_name →         │ │ mst_attendance_type    │
+│                         │ │ mst_employee.name       │ │ mst_payhead.name        │
 │ Employee-wise           │ │ payhead_name →          │ │                         │
 │ allocation              │ │ mst_payhead.name        │ │ Attendance tracking    │
-└─────────────────────────┘ │                         │ │                         │
-                            │ Payroll transactions    │ └─────────────────────────┘
+└─────────────────────────┘ │                         │ └─────────────────────────┘
+                            │ Payroll transactions    │
                             └─────────────────────────┘
 
                               BILL TRACKING
@@ -282,18 +327,34 @@
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              TRN_BANK                                       │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
-│  │ guid            │  │ ledger          │  │ transaction_type│             │
-│  │ ledger          │  │ transaction_type│  │ instrument_*    │             │
-│  │ transaction_type│  │ instrument_*    │  │ bank_name       │             │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘             │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  ┌─────────┐ │
+│  │ guid            │  │ ledger          │  │ transaction_type│  │ dates   │ │
+│  │ ledger          │  │ _ledger         │  │ instrument_no   │  │ inst/   │ │
+│  │ transaction_type│  │ bank_name       │  │ amount          │  │ bankers │ │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  └─────────┘ │
 │           │                                                                 │
 │           │ guid → trn_voucher.guid                                         │
 │           │ ledger → mst_ledger.name                                        │
 │           ▼                                                                 │
 │  ┌─────────────────┐                                                       │
-│  │ Banking         │ ← Bank transaction details (cheques, DDs, etc.)       │
+│  │ Banking         │ ← Cheques/DDs, instrument_date, bankers_date          │
 │  │ transactions    │                                                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      TRN_INVENTORY_ACCOUNTING                               │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────────────┐ │
+│  │ guid            │  │ ledger          │  │ additional_allocation_type   │ │
+│  │ ledger          │  │ amount          │  │                              │ │
+│  └─────────────────┘  └─────────────────┘  └──────────────────────────────┘ │
+│           │                                                                 │
+│           │ guid → trn_voucher.guid                                         │
+│           │ ledger → mst_ledger.name                                        │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Voucher-level   │ ← Inventory additional allocations                     │
+│  │ allocations     │                                                       │
 │  └─────────────────┘                                                       │
 └─────────────────────────────────────────────────────────────────────────────┘
 
@@ -301,17 +362,45 @@
                               ==============
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
+│                        MST_ATTENDANCE_TYPE                                  │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────────────┐ │
+│  │ guid            │  │ name            │  │ attendance_type/period       │ │
+│  │ parent          │  │ uom/_uom        │  │                              │ │
+│  └─────────────────┘  └─────────────────┘  └──────────────────────────────┘ │
+│           │                                                                 │
+│           │ parent → mst_attendance_type.name                               │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Attendance type │ ← Payroll attendance types                            │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
 │                        MST_GST_EFFECTIVE_RATE                              │
 │  ┌─────────────────┐  ┌─────────────────┐                                 │
-│  │ item            │  │ applicable_from │                                 │
-│  │ applicable_from │  │ hsn_code        │                                 │
-│  │ hsn_code        │  │ rate            │                                 │
+│  │ item/_item      │  │ applicable_from │                                 │
+│  │ hsn_desc/code   │  │ rate            │                                 │
+│  │ supply/taxablty │  │ rcm, nature_*   │                                 │
 │  └─────────────────┘  └─────────────────┘                                 │
 │           │                                                                 │
 │           │ item → mst_stock_item.name                                      │
 │           ▼                                                                 │
 │  ┌─────────────────┐                                                       │
 │  │ GST rates       │ ← Effective GST rates for items                       │
+│  └─────────────────┘                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 MST_STOCKITEM_STANDARD_COST / PRICE                         │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────────────────┐ │
+│  │ item/_item      │  │ date            │  │ rate                         │ │
+│  └─────────────────┘  └─────────────────┘  └──────────────────────────────┘ │
+│           │                                                                 │
+│           │ item → mst_stock_item.name                                      │
+│           ▼                                                                 │
+│  ┌─────────────────┐                                                       │
+│  │ Standard cost & │ ← Historical standard cost and price                  │
+│  │ price           │                                                       │
 │  └─────────────────┘                                                       │
 └─────────────────────────────────────────────────────────────────────────────┘
 

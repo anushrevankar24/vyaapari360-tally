@@ -1,0 +1,22 @@
+{
+    "database": {
+        "technology": "postgres",
+        "server": "localhost",
+        "port": 5432,
+        "ssl": false,
+        "schema": "tallydb",
+        "username": "your_username",
+        "password": "your_password",
+        "loadmethod": "insert"
+    },
+    "tally": {
+        "definition": "tally-export-config.yaml",
+        "server": "https://your-tally-server.com",
+        "port": 443,
+        "fromdate": "auto",
+        "todate": "auto",
+        "sync": "full",
+        "frequency": 0,
+        "company": ""
+    }
+}

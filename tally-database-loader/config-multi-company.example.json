@@ -1,0 +1,32 @@
+{
+    "database": {
+        "technology": "postgres",
+        "server": "localhost",
+        "port": 5432,
+        "ssl": false,
+        "schema": "tallydb",
+        "username": "your_username",
+        "password": "your_password",
+        "loadmethod": "insert"
+    },
+    "companies": [
+        {
+            "company_id": "your-company-uuid-here",
+            "company_name": "Your Company Name",
+            "divisions": [
+                {
+                    "division_id": "your-division-uuid-here",
+                    "division_name": "Your Division Name",
+                    "tally_url": "https://your-tally-server.com"
+                }
+            ]
+        }
+    ],
+    "tally": {
+        "definition": "tally-export-config-multi-company-incremental.yaml",
+        "fromdate": "auto",
+        "todate": "auto",
+        "sync": "full",
+        "frequency": 0
+    }
+}

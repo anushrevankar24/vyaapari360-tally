@@ -18,45 +18,152 @@ KEY CONCEPTS:
 5. Incremental Sync: Supports both full and incremental data synchronization
 
 ================================================================================
+                            COMPLETE TABLE LIST
+================================================================================
+
+The Tally Database Loader creates a total of 33 tables organized into the following categories:
+
+REFERENCE TABLES (3):
+- mst_company: Company master data
+- mst_division: Division master data  
+- config: System configuration
+
+MASTER DATA TABLES (18):
+- mst_group: Account groups hierarchy
+- mst_ledger: Chart of accounts
+- mst_vouchertype: Voucher types
+- mst_uom: Units of measure
+- mst_godown: Warehouses/locations
+- mst_stock_group: Stock item groups
+- mst_stock_item: Stock items
+- mst_cost_category: Cost categories
+- mst_cost_centre: Cost centers
+- mst_attendance_type: Attendance types
+- mst_employee: Employee master
+- mst_payhead: Payroll components
+- mst_gst_effective_rate: GST rates
+- mst_opening_batch_allocation: Opening batches
+- mst_opening_bill_allocation: Opening bills
+- trn_closingstock_ledger: Stock valuations
+- mst_stockitem_standard_cost: Standard costs
+- mst_stockitem_standard_price: Standard prices
+
+TRANSACTION TABLES (12):
+- trn_voucher: Voucher headers
+- trn_accounting: Accounting entries
+- trn_inventory: Inventory transactions
+- trn_cost_centre: Cost center allocations
+- trn_cost_category_centre: Cost category allocations
+- trn_cost_inventory_category_centre: Inventory cost allocations
+- trn_bill: Bill tracking
+- trn_bank: Banking transactions
+- trn_batch: Batch-wise inventory
+- trn_inventory_accounting: Inventory accounting
+- trn_employee: Employee transactions
+- trn_payhead: Payroll transactions
+- trn_attendance: Attendance transactions
+
+================================================================================
                                 MASTER DATA TABLES
 ================================================================================
 
-1. CONFIG TABLE
+1. MST_COMPANY (Company Master)
+------------------------------
+Purpose: Stores company information for multi-company setup
+Key Fields:
+- company_id (varchar(36), PK): Unique company identifier
+- company_name (varchar(256)): Company name
+- created_at (timestamp): Record creation timestamp
+- updated_at (timestamp): Record update timestamp
+
+Relationships:
+- Referenced by: All tables via company_id foreign key
+
+2. MST_DIVISION (Division Master)
+---------------------------------
+Purpose: Stores division information for multi-company setup
+Key Fields:
+- division_id (varchar(36), PK): Unique division identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_name (varchar(256)): Division name
+- tally_url (varchar(512)): Tally instance URL
+- created_at (timestamp): Record creation timestamp
+- updated_at (timestamp): Record update timestamp
+
+Relationships:
+- company_id -> mst_company(company_id)
+- Referenced by: All tables via division_id foreign key
+
+3. CONFIG TABLE
 ---------------
 Purpose: Stores system configuration and metadata
 Fields:
-- name (nvarchar(64), PK): Configuration key
-- value (nvarchar(1024)): Configuration value
+- name (varchar(64), PK): Configuration key
+- value (varchar(1024)): Configuration value
 
-2. MST_GROUP (Account Groups)
+4. MST_GROUP (Account Groups)
 -----------------------------
 Purpose: Stores chart of accounts group hierarchy
 Key Fields:
-- guid (varchar(64), PK): Unique identifier
-- name (nvarchar(1024)): Group name
-- parent (nvarchar(1024)): Parent group name (hierarchical)
-- primary_group (nvarchar(1024)): Primary group classification
-- is_revenue (tinyint): Revenue group flag
-- is_deemedpositive (tinyint): Debit/Credit nature
-- affects_gross_profit (tinyint): Affects P&L calculation
+- guid (varchar(64)): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- name (varchar(1024)): Group name
+- parent (varchar(1024)): Parent group name (hierarchical)
+- _parent (varchar(64)): Parent GUID reference
+- primary_group (varchar(1024)): Primary group classification
+- is_revenue (smallint): Revenue group flag
+- is_deemedpositive (smallint): Debit/Credit nature
+- is_reserved (smallint): Reserved group flag
+- affects_gross_profit (smallint): Affects P&L calculation
+- sort_position (int): Display order
 
 Relationships:
+- company_id -> mst_company(company_id)
+- division_id -> mst_division(division_id)
 - Self-referencing: parent -> name (hierarchical)
 - Referenced by: mst_ledger.parent
 
-3. MST_LEDGER (Chart of Accounts)
+5. MST_LEDGER (Chart of Accounts)
 ---------------------------------
 Purpose: Stores individual ledger accounts
 Key Fields:
-- guid (varchar(64), PK): Unique identifier
-- name (nvarchar(1024)): Ledger name
-- parent (nvarchar(1024)): Parent group name
+- guid (varchar(64)): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- name (varchar(1024)): Ledger name
+- parent (varchar(1024)): Parent group name
+- _parent (varchar(64)): Parent GUID reference
+- alias (varchar(256)): Ledger alias
+- description (varchar(64)): Description
+- notes (varchar(64)): Notes
+- is_revenue (smallint): Revenue ledger flag
+- is_deemedpositive (smallint): Debit/Credit nature
 - opening_balance (decimal(17,2)): Opening balance
 - closing_balance (decimal(17,2)): Closing balance
-- gstn (nvarchar(64)): GST registration number
-- bank_account_number (nvarchar(64)): Bank account details
+- mailing_name (varchar(256)): Mailing name
+- mailing_address (varchar(1024)): Mailing address
+- mailing_state (varchar(256)): Mailing state
+- mailing_country (varchar(256)): Mailing country
+- mailing_pincode (varchar(64)): Mailing pincode
+- email (varchar(256)): Email address
+- it_pan (varchar(64)): PAN number
+- gstn (varchar(64)): GST registration number
+- gst_registration_type (varchar(64)): GST registration type
+- gst_supply_type (varchar(64)): GST supply type
+- gst_duty_head (varchar(16)): GST duty head
+- tax_rate (decimal(9,4)): Tax rate
+- bank_account_holder (varchar(256)): Bank account holder
+- bank_account_number (varchar(64)): Bank account number
+- bank_ifsc (varchar(64)): Bank IFSC code
+- bank_swift (varchar(64)): Bank SWIFT code
+- bank_name (varchar(64)): Bank name
+- bank_branch (varchar(64)): Bank branch
+- bill_credit_period (int): Bill credit period in days
 
 Relationships:
+- company_id -> mst_company(company_id)
+- division_id -> mst_division(division_id)
 - parent -> mst_group.name
 - Referenced by: All transaction tables via ledger field
 
@@ -65,9 +172,12 @@ Relationships:
 Purpose: Defines different types of vouchers
 Key Fields:
 - guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Voucher type name
 - parent (nvarchar(1024)): Parent voucher type
 - numbering_method (nvarchar(64)): Auto numbering method
+- is_deemedpositive (tinyint): Debit/Credit nature
 - affects_stock (tinyint): Affects inventory
 
 Relationships:
@@ -79,9 +189,13 @@ Relationships:
 Purpose: Stores measurement units
 Key Fields:
 - guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Unit symbol
 - formalname (nvarchar(256)): Formal unit name
 - is_simple_unit (tinyint): Simple or compound unit
+- base_units (nvarchar(1024)): Base units (for compound units)
+- additional_units (nvarchar(1024)): Additional units (for compound units)
 - conversion (int): Conversion factor
 
 Relationships:
@@ -92,6 +206,8 @@ Relationships:
 Purpose: Stores warehouse/location information
 Key Fields:
 - guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Godown name
 - parent (nvarchar(1024)): Parent godown
 - address (nvarchar(1024)): Physical address
@@ -105,6 +221,8 @@ Relationships:
 Purpose: Hierarchical grouping of stock items
 Key Fields:
 - guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Group name
 - parent (nvarchar(1024)): Parent group
 
@@ -117,12 +235,32 @@ Relationships:
 Purpose: Stores individual stock items
 Key Fields:
 - guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Item name
 - parent (nvarchar(1024)): Stock group
+- _parent (varchar(64)): Parent GUID reference
+- alias (varchar(256)): Item alias
+- description (varchar(64)): Item description
+- notes (varchar(64)): Notes
+- part_number (varchar(256)): Part number/SKU
 - uom (nvarchar(32)): Unit of measure
+- _uom (varchar(64)): Unit GUID reference
+- alternate_uom (nvarchar(32)): Alternate unit of measure
+- _alternate_uom (varchar(64)): Alternate unit GUID reference
+- conversion (int): Conversion factor
 - opening_balance (decimal(15,4)): Opening stock
+- opening_rate (decimal(15,4)): Opening rate
+- opening_value (decimal(17,2)): Opening value
 - closing_balance (decimal(15,4)): Closing stock
+- closing_rate (decimal(15,4)): Closing rate
+- closing_value (decimal(17,2)): Closing value
+- costing_method (varchar(32)): Costing method
+- gst_type_of_supply (varchar(32)): GST type of supply
 - gst_hsn_code (nvarchar(64)): HSN code for GST
+- gst_hsn_description (varchar(256)): HSN description
+- gst_rate (decimal(9,4)): GST rate
+- gst_taxability (varchar(32)): Taxability
 
 Relationships:
 - parent -> mst_stock_group.name
@@ -134,6 +272,8 @@ Relationships:
 Purpose: Cost allocation categories
 Key Fields:
 - guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Category name
 - allocate_revenue (tinyint): Revenue allocation flag
 - allocate_non_revenue (tinyint): Non-revenue allocation flag
@@ -146,6 +286,8 @@ Relationships:
 Purpose: Cost centers for allocation
 Key Fields:
 - guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Cost center name
 - parent (nvarchar(1024)): Parent category
 - category (nvarchar(1024)): Cost category
@@ -160,6 +302,8 @@ Relationships:
 Purpose: Employee information for payroll
 Key Fields:
 - guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Employee name
 - parent (nvarchar(1024)): Department/category
 - id_number (nvarchar(256)): Employee ID
@@ -176,14 +320,35 @@ Relationships:
 Purpose: Payroll components and heads
 Key Fields:
 - guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Payhead name
 - parent (nvarchar(1024)): Parent ledger
+- payslip_name (nvarchar(1024)): Payslip display name
 - pay_type (nvarchar(64)): Type of pay
+- income_type (nvarchar(64)): Income type
 - calculation_type (nvarchar(32)): Calculation method
+- leave_type (nvarchar(64)): Leave type
+- calculation_period (nvarchar(32)): Calculation period
 
 Relationships:
 - parent -> mst_ledger.name
 - Referenced by: trn_payhead.payhead_name
+
+13. MST_ATTENDANCE_TYPE (Attendance Types)
+-----------------------------------------
+Purpose: Attendance type master for payroll attendance
+Key Fields:
+- guid (varchar(64), PK): Unique identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- name (nvarchar(1024)): Attendance type name
+- parent (nvarchar(1024)): Parent attendance category
+- _parent (varchar(64)): Parent GUID reference
+- uom (varchar(32)): Unit of measure
+- _uom (varchar(64)): Unit GUID reference
+- attendance_type (varchar(64)): Type of attendance
+- attendance_period (varchar(64)): Attendance period
 
 ================================================================================
                               TRANSACTION TABLES
@@ -193,17 +358,27 @@ Relationships:
 -------------------------------
 Purpose: Main transaction header table
 Key Fields:
-- guid (varchar(64), PK): Unique voucher identifier
+- guid (varchar(64)): Unique voucher identifier
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - date (date): Transaction date
-- voucher_type (nvarchar(1024)): Type of voucher
-- voucher_number (nvarchar(64)): Voucher number
-- party_name (nvarchar(256)): Party/customer name
-- narration (nvarchar(4000)): Transaction description
-- is_invoice (tinyint): Invoice flag
-- is_accounting_voucher (tinyint): Accounting voucher flag
-- is_inventory_voucher (tinyint): Inventory voucher flag
+- voucher_type (varchar(1024)): Type of voucher
+- _voucher_type (varchar(64)): Voucher type GUID reference
+- voucher_number (varchar(64)): Voucher number
+- reference_number (varchar(64)): Reference number
+- reference_date (date): Reference date
+- narration (varchar(4000)): Transaction description
+- party_name (varchar(256)): Party/customer name
+- _party_name (varchar(64)): Party GUID reference
+- place_of_supply (varchar(256)): Place of supply
+- is_invoice (smallint): Invoice flag
+- is_accounting_voucher (smallint): Accounting voucher flag
+- is_inventory_voucher (smallint): Inventory voucher flag
+- is_order_voucher (smallint): Order voucher flag
 
 Relationships:
+- company_id -> mst_company(company_id)
+- division_id -> mst_division(division_id)
 - voucher_type -> mst_vouchertype.name
 - party_name -> mst_ledger.name
 - Referenced by: All transaction detail tables via guid
@@ -213,12 +388,17 @@ Relationships:
 Purpose: Double-entry accounting transactions
 Key Fields:
 - guid (varchar(64)): Voucher reference
-- ledger (nvarchar(1024)): Ledger account name
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- ledger (varchar(1024)): Ledger account name
+- _ledger (varchar(64)): Ledger GUID reference
 - amount (decimal(17,2)): Transaction amount
 - amount_forex (decimal(17,2)): Foreign currency amount
-- currency (nvarchar(16)): Currency code
+- currency (varchar(16)): Currency code
 
 Relationships:
+- company_id -> mst_company(company_id)
+- division_id -> mst_division(division_id)
 - guid -> trn_voucher.guid
 - ledger -> mst_ledger.name
 
@@ -228,11 +408,17 @@ Purpose: Stock movement transactions
 Key Fields:
 - guid (varchar(64)): Voucher reference
 - item (nvarchar(1024)): Stock item name
+- _item (varchar(64)): Item GUID reference
 - quantity (decimal(15,4)): Quantity
 - rate (decimal(15,4)): Rate per unit
 - amount (decimal(17,2)): Total amount
+- additional_amount (decimal(17,2)): Additional allocation amount
+- discount_amount (decimal(17,2)): Discount allocation amount
 - godown (nvarchar(1024)): Warehouse location
+- _godown (varchar(64)): Godown GUID reference
 - tracking_number (nvarchar(256)): Tracking reference
+- order_number (varchar(256)): Linked order number
+- order_duedate (date): Linked order due date
 
 Relationships:
 - guid -> trn_voucher.guid
@@ -259,6 +445,7 @@ Purpose: Bill-wise tracking of transactions
 Key Fields:
 - guid (varchar(64)): Voucher reference
 - ledger (nvarchar(1024)): Party ledger
+- _ledger (varchar(64)): Ledger GUID reference
 - name (nvarchar(1024)): Bill name/number
 - amount (decimal(17,2)): Bill amount
 - billtype (nvarchar(256)): Type of bill
@@ -274,10 +461,13 @@ Purpose: Bank transaction details
 Key Fields:
 - guid (varchar(64)): Voucher reference
 - ledger (nvarchar(1024)): Bank ledger
+- _ledger (varchar(64)): Ledger GUID reference
 - transaction_type (nvarchar(32)): Transaction type
+- instrument_date (date): Instrument date
 - instrument_number (nvarchar(1024)): Cheque/DD number
 - bank_name (nvarchar(64)): Bank name
 - amount (decimal(17,2)): Transaction amount
+- bankers_date (date): Bankers date
 
 Relationships:
 - guid -> trn_voucher.guid
@@ -289,10 +479,15 @@ Purpose: Batch-wise stock tracking
 Key Fields:
 - guid (varchar(64)): Voucher reference
 - item (nvarchar(1024)): Stock item
+- _item (varchar(64)): Item GUID reference
 - name (nvarchar(1024)): Batch name
 - quantity (decimal(15,4)): Batch quantity
 - amount (decimal(17,2)): Batch value
 - godown (nvarchar(1024)): Storage location
+- destination_godown (nvarchar(1024)): Destination location
+- tracking_number (nvarchar(1024)): Tracking number
+- _godown (varchar(64)): Godown GUID reference
+- _destination_godown (varchar(64)): Destination godown GUID reference
 
 Relationships:
 - guid -> trn_voucher.guid
@@ -305,8 +500,11 @@ Purpose: Employee-wise transaction allocation
 Key Fields:
 - guid (varchar(64)): Voucher reference
 - category (nvarchar(1024)): Cost category
+- _category (varchar(64)): Category GUID reference
 - employee_name (nvarchar(1024)): Employee name
+- _employee_name (varchar(64)): Employee GUID reference
 - amount (decimal(17,2)): Allocated amount
+- employee_sort_order (int): Sort order within voucher
 
 Relationships:
 - guid -> trn_voucher.guid
@@ -319,8 +517,13 @@ Purpose: Payroll component transactions
 Key Fields:
 - guid (varchar(64)): Voucher reference
 - category (nvarchar(1024)): Cost category
+- _category (varchar(64)): Category GUID reference
 - employee_name (nvarchar(1024)): Employee name
+- _employee_name (varchar(64)): Employee GUID reference
+- employee_sort_order (int): Employee sort order
 - payhead_name (nvarchar(1024)): Payroll component
+- _payhead_name (varchar(64)): Payhead GUID reference
+- payhead_sort_order (int): Payhead sort order
 - amount (decimal(17,2)): Amount
 
 Relationships:
@@ -328,6 +531,64 @@ Relationships:
 - category -> mst_cost_category.name
 - employee_name -> mst_employee.name
 - payhead_name -> mst_payhead.name
+
+10. TRN_COST_CATEGORY_CENTRE (Cost Category-Centre Allocations)
+----------------------------------------------------------------
+Purpose: Allocation by cost category and cost centre
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- ledger (nvarchar(1024)): Ledger name
+- _ledger (varchar(64)): Ledger GUID reference
+- costcategory (nvarchar(1024)): Cost category name
+- _costcategory (varchar(64)): Cost category GUID reference
+- costcentre (nvarchar(1024)): Cost centre name
+- _costcentre (varchar(64)): Cost centre GUID reference
+- amount (decimal(17,2)): Allocated amount
+
+11. TRN_COST_INVENTORY_CATEGORY_CENTRE (Item Cost Category-Centre Allocations)
+------------------------------------------------------------------------------
+Purpose: Allocation by item, cost category and cost centre
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- ledger (nvarchar(1024)): Ledger name
+- _ledger (varchar(64)): Ledger GUID reference
+- item (nvarchar(1024)): Item name
+- _item (varchar(64)): Item GUID reference
+- costcategory (nvarchar(1024)): Cost category name
+- _costcategory (varchar(64)): Cost category GUID reference
+- costcentre (nvarchar(1024)): Cost centre name
+- _costcentre (varchar(64)): Cost centre GUID reference
+- amount (decimal(17,2)): Allocated amount
+
+12. TRN_INVENTORY_ACCOUNTING (Inventory Additional Allocations)
+----------------------------------------------------------------
+Purpose: Inventory-related accounting allocations at voucher level
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- ledger (nvarchar(1024)): Ledger name
+- _ledger (varchar(64)): Ledger GUID reference
+- amount (decimal(17,2)): Amount
+- additional_allocation_type (varchar(32)): Allocation type
+
+13. TRN_ATTENDANCE (Attendance Transactions)
+--------------------------------------------
+Purpose: Attendance-wise transaction details
+Key Fields:
+- guid (varchar(64)): Voucher reference
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- employee_name (nvarchar(1024)): Employee name
+- _employee_name (varchar(64)): Employee GUID reference
+- attendancetype_name (nvarchar(1024)): Attendance type
+- _attendancetype_name (varchar(64)): Attendance type GUID reference
+- time_value (decimal(17,2)): Time value
+- type_value (decimal(17,2)): Type value
 
 ================================================================================
                               DERIVED TABLES
@@ -337,10 +598,19 @@ Relationships:
 -------------------------------------
 Purpose: Effective GST rates for items
 Key Fields:
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - item (nvarchar(1024)): Stock item name
+- _item (varchar(64)): Item GUID reference
 - applicable_from (date): Rate effective date
+- hsn_description (varchar(256)): HSN description
 - hsn_code (nvarchar(64)): HSN code
 - rate (decimal(9,4)): GST rate percentage
+- is_rcm_applicable (smallint): Reverse charge applicable
+- nature_of_transaction (varchar(64)): Nature of transaction
+- nature_of_goods (varchar(64)): Nature of goods
+- supply_type (varchar(64)): Supply type
+- taxability (varchar(64)): Taxability
 
 Relationships:
 - item -> mst_stock_item.name
@@ -349,11 +619,17 @@ Relationships:
 -------------------------------------------------
 Purpose: Opening stock batch details
 Key Fields:
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - name (nvarchar(1024)): Batch name
 - item (nvarchar(1024)): Stock item
+- _item (varchar(64)): Item GUID reference
 - opening_balance (decimal(15,4)): Opening quantity
 - opening_rate (decimal(15,4)): Opening rate
+- opening_value (decimal(17,2)): Opening value
 - godown (nvarchar(1024)): Storage location
+- _godown (varchar(64)): Godown GUID reference
+- manufactured_on (date): Manufacturing date
 
 Relationships:
 - item -> mst_stock_item.name
@@ -363,10 +639,15 @@ Relationships:
 ----------------------------------------------
 Purpose: Opening bill details
 Key Fields:
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - ledger (nvarchar(1024)): Party ledger
+- _ledger (varchar(64)): Ledger GUID reference
 - opening_balance (decimal(17,4)): Opening balance
 - bill_date (date): Bill date
 - name (nvarchar(1024)): Bill name
+- bill_credit_period (int): Credit period in days
+- is_advance (smallint): Advance flag
 
 Relationships:
 - ledger -> mst_ledger.name
@@ -375,20 +656,51 @@ Relationships:
 ---------------------------------------------
 Purpose: Stock valuation at different dates
 Key Fields:
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
 - ledger (nvarchar(1024)): Stock ledger
+- _ledger (varchar(64)): Ledger GUID reference
 - stock_date (date): Valuation date
 - stock_value (decimal(17,2)): Stock value
 
 Relationships:
 - ledger -> mst_ledger.name
 
+5. MST_STOCKITEM_STANDARD_COST (Standard Cost)
+----------------------------------------------
+Purpose: Item standard cost over time
+Key Fields:
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- item (nvarchar(1024)): Stock item name
+- _item (varchar(64)): Item GUID reference
+- date (date): Effective date
+- rate (decimal(15,4)): Standard cost rate
+
+6. MST_STOCKITEM_STANDARD_PRICE (Standard Price)
+-----------------------------------------------
+Purpose: Item standard price over time
+Key Fields:
+- company_id (varchar(36), FK): Reference to mst_company
+- division_id (varchar(36), FK): Reference to mst_division
+- item (nvarchar(1024)): Stock item name
+- _item (varchar(64)): Item GUID reference
+- date (date): Effective date
+- rate (decimal(15,4)): Standard selling price rate
+
 ================================================================================
                               RELATIONSHIP MAPPING
 ================================================================================
 
-IMPLICIT RELATIONSHIPS (No Foreign Keys):
+FOREIGN KEY RELATIONSHIPS (Multi-Company Structure):
 
-1. HIERARCHICAL RELATIONSHIPS:
+1. COMPANY AND DIVISION RELATIONSHIPS:
+   - ALL TABLES include company_id and division_id
+   - ALL TABLES.company_id -> mst_company(company_id)
+   - ALL TABLES.division_id -> mst_division(division_id)
+   - mst_division.company_id -> mst_company(company_id)
+
+2. HIERARCHICAL RELATIONSHIPS (Name-based):
    - mst_group.parent -> mst_group.name
    - mst_ledger.parent -> mst_group.name
    - mst_stock_group.parent -> mst_stock_group.name
@@ -396,27 +708,36 @@ IMPLICIT RELATIONSHIPS (No Foreign Keys):
    - mst_godown.parent -> mst_godown.name
    - mst_cost_centre.parent -> mst_cost_category.name
 
-2. TRANSACTION RELATIONSHIPS:
+3. TRANSACTION RELATIONSHIPS:
    - trn_voucher.guid -> All transaction detail tables.guid
    - trn_voucher.voucher_type -> mst_vouchertype.name
    - trn_voucher.party_name -> mst_ledger.name
 
-3. ACCOUNTING RELATIONSHIPS:
+4. ACCOUNTING RELATIONSHIPS:
    - trn_accounting.ledger -> mst_ledger.name
    - trn_cost_centre.ledger -> mst_ledger.name
    - trn_cost_centre.costcentre -> mst_cost_centre.name
+   - trn_cost_category_centre.costcategory -> mst_cost_category.name
+   - trn_cost_category_centre.costcentre -> mst_cost_centre.name
+   - trn_cost_inventory_category_centre.item -> mst_stock_item.name
+   - trn_inventory_accounting.ledger -> mst_ledger.name
 
-4. INVENTORY RELATIONSHIPS:
+5. INVENTORY RELATIONSHIPS:
    - trn_inventory.item -> mst_stock_item.name
    - trn_inventory.godown -> mst_godown.name
    - trn_batch.item -> mst_stock_item.name
    - trn_batch.godown -> mst_godown.name
 
-5. PAYROLL RELATIONSHIPS:
+6. PAYROLL RELATIONSHIPS:
    - trn_employee.employee_name -> mst_employee.name
    - trn_employee.category -> mst_cost_category.name
    - trn_payhead.employee_name -> mst_employee.name
    - trn_payhead.payhead_name -> mst_payhead.name
+
+7. GUID REFERENCE RELATIONSHIPS:
+   - All _field_name columns contain GUID references to master tables
+   - Used for efficient lookups and data integrity
+   - Example: _ledger -> mst_ledger.guid, _item -> mst_stock_item.guid
 
 ================================================================================
                               DATA FLOW PATTERN
@@ -481,13 +802,74 @@ For a Sales Voucher (as shown in the image):
    - trn_cost_centre: For cost allocation
 
 ================================================================================
+                              MULTI-COMPANY STRUCTURE
+================================================================================
+
+The multi-company version extends the base structure with the following enhancements:
+
+1. COMPANY AND DIVISION SEPARATION:
+   - mst_company: Stores company information with unique company_id
+   - mst_division: Stores division information with unique division_id
+   - All tables include company_id and division_id for data isolation
+
+2. SIMPLIFIED PRIMARY KEY APPROACH:
+   - Master tables: Retain primary keys (guid, company_id, division_id)
+   - Transaction tables: NO primary keys to allow multiple entries per voucher
+   - Data uniqueness handled by application logic using (guid, company_id, division_id)
+
+3. FOREIGN KEY RELATIONSHIPS:
+   - All tables have foreign keys to mst_company(company_id)
+   - All tables have foreign keys to mst_division(division_id)
+   - No foreign keys between transaction tables to avoid constraint conflicts
+
+4. GUID COLLISION PREVENTION:
+   - GUIDs from different Tally instances can be identical
+   - Data separation achieved through company_id and division_id
+   - Application queries must always include company_id and division_id
+
+5. PERFORMANCE OPTIMIZATION:
+   - Composite indexes on (company_id, division_id) for all tables
+   - Additional indexes on (guid, company_id, division_id) for transaction tables
+   - Date-based indexes for time-series queries
+
+================================================================================
+                              INDEXING STRATEGY
+================================================================================
+
+The multi-company database structure includes the following indexes for optimal performance:
+
+1. COMPANY/DIVISION INDEXES:
+   - idx_mst_group_company_division on mst_group(company_id, division_id)
+   - idx_mst_ledger_company_division on mst_ledger(company_id, division_id)
+   - idx_mst_vouchertype_company_division on mst_vouchertype(company_id, division_id)
+   - idx_mst_stock_item_company_division on mst_stock_item(company_id, division_id)
+   - idx_trn_voucher_company_division on trn_voucher(company_id, division_id)
+   - idx_trn_accounting_company_division on trn_accounting(company_id, division_id)
+   - idx_trn_inventory_company_division on trn_inventory(company_id, division_id)
+
+2. TRANSACTION GUID INDEXES:
+   - idx_trn_voucher_guid_company_division on trn_voucher(guid, company_id, division_id)
+   - idx_trn_accounting_guid_company_division on trn_accounting(guid, company_id, division_id)
+   - idx_trn_inventory_guid_company_division on trn_inventory(guid, company_id, division_id)
+   - idx_trn_cost_centre_guid_company_division on trn_cost_centre(guid, company_id, division_id)
+   - idx_trn_bill_guid_company_division on trn_bill(guid, company_id, division_id)
+   - idx_trn_bank_guid_company_division on trn_bank(guid, company_id, division_id)
+   - idx_trn_batch_guid_company_division on trn_batch(guid, company_id, division_id)
+
+3. DATE-BASED INDEXES:
+   - idx_trn_voucher_date on trn_voucher(date)
+
+These indexes ensure efficient querying across companies and divisions while maintaining fast lookups for specific vouchers and date ranges.
+
+================================================================================
                               KEY INSIGHTS
 ================================================================================
 
-1. NO FOREIGN KEY CONSTRAINTS:
+1. NO FOREIGN KEY CONSTRAINTS ON TRANSACTION TABLES:
    - Relationships maintained through application logic
    - Name-based references with GUID fallback
    - Flexible but requires careful data integrity management
+   - Allows multiple ledger entries per voucher (Tally's accounting model)
 
 2. HIERARCHICAL DESIGN:
    - Master data follows tree structures
@@ -498,16 +880,19 @@ For a Sales Voucher (as shown in the image):
    - All transactions linked via voucher GUID
    - Double-entry accounting maintained
    - Inventory and accounting synchronized
+   - Multiple entries per voucher supported (no primary key conflicts)
 
 4. SCALABILITY:
    - Supports large volumes of transactions
    - Incremental sync for performance
    - Configurable data extraction
+   - Multi-company data isolation
 
 5. FLEXIBILITY:
-   - Supports multiple companies
+   - Supports multiple companies and divisions
    - Configurable field mapping
    - Extensible table structure
+   - GUID collision prevention across Tally instances
 
 ================================================================================
                               CONCLUSION

@@ -20,7 +20,17 @@ class _database {
 
     constructor() {
         try {
-            this.config = JSON.parse(fs.readFileSync('./config.json', 'utf8'))['database'];
+            // Initialize with default values - will be overridden by updateCommandlineConfig
+            this.config = {
+                technology: 'postgres',
+                server: 'localhost',
+                port: 5432,
+                schema: 'postgres',
+                ssl: false,
+                username: 'postgres',
+                password: '',
+                loadmethod: 'insert'
+            };
         } catch (err) {
             logger.logError('database()', err);
             throw err;
@@ -29,6 +39,20 @@ class _database {
 
     updateCommandlineConfig(lstConfigs: Map<string, string>): void {
         try {
+            // Load config file if specified via command line
+            if (lstConfigs.has('config')) {
+                let configFile = lstConfigs.get('config') || '';
+                if (fs.existsSync(configFile)) {
+                    let configContent = fs.readFileSync(configFile, 'utf8');
+                    let fullConfig = JSON.parse(configContent);
+                    this.config = fullConfig['database'] || this.config;
+                    logger.logMessage(`Database config loaded from: ${configFile}`);
+                } else {
+                    logger.logMessage(`Config file not found: ${configFile}, using default database config`);
+                }
+            }
+
+            // Override with individual command line parameters if provided
             if (lstConfigs.has('database-technology')) this.config.technology = lstConfigs.get('database-technology') || '';
             if (lstConfigs.has('database-server')) this.config.server = lstConfigs.get('database-server') || '';
             if (lstConfigs.has('database-port')) this.config.port = parseInt(lstConfigs.get('database-port') || '0');

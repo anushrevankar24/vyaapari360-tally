@@ -1,0 +1,32 @@
+{
+    "database": {
+        "technology": "postgres",
+        "server": "${SUPABASE_SERVER}",
+        "port": 5432,
+        "ssl": true,
+        "schema": "${SUPABASE_SCHEMA}",
+        "username": "postgres",
+        "password": "${SUPABASE_PASSWORD}",
+        "loadmethod": "insert"
+    },
+    "companies": [
+        {
+            "company_id": "your-company-uuid-here",
+            "company_name": "Your Company Name",
+            "divisions": [
+                {
+                    "division_id": "your-division-uuid-here",
+                    "division_name": "Your Division Name",
+                    "tally_url": "https://your-tally-server.com"
+                }
+            ]
+        }
+    ],
+    "tally": {
+        "definition": "tally-export-config-multi-company-incremental.yaml",
+        "fromdate": "auto",
+        "todate": "auto",
+        "sync": "incremental",
+        "frequency": 0
+    }
+}

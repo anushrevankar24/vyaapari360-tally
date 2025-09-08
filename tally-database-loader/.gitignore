@@ -11,3 +11,15 @@ error-log.txt
 *.duckdb
 bigquery-credentials.json
 adls-config.json
+
+# Exclude config files with sensitive data
+config.json
+config-multi-company.json
+config-multi-company-full-localdb.json
+config-multi-company-full-supabase.json
+config-multi-company-incremental-supabase.json
+config-multi-company-incrmental-localdb.json
+
+# Exclude shell scripts with sensitive credentials
+run-full-sync-supabase.sh
+run-sync-supabase.sh
