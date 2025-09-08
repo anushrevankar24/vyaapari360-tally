@@ -1,0 +1,32 @@
+{
+    "database": {
+        "technology": "postgres",
+        "server": "localhost",
+        "port": 5432,
+        "ssl": false,
+        "schema": "tallydb_incremental",
+        "username": "anush",
+        "password": "anush24",
+        "loadmethod": "insert"
+    },
+    "companies": [
+        {
+            "company_id": "bc90d453-0c64-4f6f-8bbe-dca32aba40d1",
+            "company_name": "SKM Steels",
+            "divisions": [
+                {
+                    "division_id": "b38bfb72-3dd7-4aa5-b970-71b919d5ded4",
+                    "division_name": "SKM Steels (Chennai)",
+                    "tally_url": "https://0780aee7142f.ngrok-free.app"
+                }
+            ]
+        }
+    ],
+    "tally": {
+        "definition": "tally-export-config-multi-company-incremental.yaml",
+        "fromdate": "auto",
+        "todate": "auto",
+        "sync": "incremental",
+        "frequency": 0
+    }
+}

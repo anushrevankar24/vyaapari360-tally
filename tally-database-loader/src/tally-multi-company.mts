@@ -232,7 +232,61 @@ class _tallyMultiCompany {
             return;
         }
 
-        // Process master tables
+        //iterate through all the Primary type of tables for change detection
+        let lstPrimaryTables: tableConfigYAML[] = [];
+        if (flgIsMasterChanged) {
+            lstPrimaryTables.push(...this.lstTableMaster.filter(p => p.nature == 'Primary'));
+        }
+        if (flgIsTransactionChanged) {
+            lstPrimaryTables.push(...this.lstTableTransaction.filter(p => p.nature == 'Primary'));
+        }
+        
+        for (let i = 0; i < lstPrimaryTables.length; i++) {
+            let activeTable = lstPrimaryTables[i];
+            await database.executeNonQuery('truncate table _diff;');
+            await database.executeNonQuery('truncate table _delete;');
+            let tempTable: tableConfigYAML = {
+                name: '',
+                collection: activeTable.collection,
+                fields: [
+                    {
+                        name: 'guid',
+                        field: 'Guid',
+                        type: 'text'
+                    },
+                    {
+                        name: 'alterid',
+                        field: 'AlterId',
+                        type: 'text'
+                    }
+                ],
+                nature: '',
+                fetch: ['AlterId'],
+                filters: activeTable.filters
+            };
+            await this.processReport('_diff', tempTable, configTallyXML, company, division);
+            await database.bulkLoad(path.join(process.cwd(), `./csv/_diff.data`), '_diff', tempTable.fields.map(p => p.type)); //upload to temporary table
+            fs.unlinkSync(path.join(process.cwd(), `./csv/_diff.data`)); //delete temporary file
+
+            //insert into delete list rows there were deleted in current data compared to previous one
+            await database.executeNonQuery(`insert into _delete select guid from ${activeTable.name} where company_id = '${company.company_id}' and division_id = '${division.division_id}' and guid not in (select guid from _diff);`);
+            //insert into delete list rows that were modified in current data (as they will be imported freshly)
+            await database.executeNonQuery(`insert into _delete select t.guid from ${activeTable.name} as t join _diff as s on s.guid = t.guid where t.company_id = '${company.company_id}' and t.division_id = '${division.division_id}' and s.alterid <> t.alterid;`);
+
+            //remove delete list rows from the source table
+            await database.executeNonQuery(`delete from ${activeTable.name} where company_id = '${company.company_id}' and division_id = '${division.division_id}' and guid in (select guid from _delete)`);
+
+            //iterate through each cascade delete table and delete modified rows for insertion of fresh copy
+            if (Array.isArray(activeTable.cascade_delete) && activeTable.cascade_delete.length) {
+                for (let j = 0; j < activeTable.cascade_delete.length; j++) {
+                    let targetTable = activeTable.cascade_delete[j].table;
+                    let targetField = activeTable.cascade_delete[j].field;
+                    await database.executeNonQuery(`delete from ${targetTable} where company_id = '${company.company_id}' and division_id = '${division.division_id}' and ${targetField} in (select guid from _delete);`);
+                }
+            }
+        }
+
+        // iterate through all Master tables to extract modifed and added rows in Tally data
         if (flgIsMasterChanged) {
             for (let i = 0; i < this.lstTableMaster.length; i++) {
                 let activeTable = this.lstTableMaster[i];
@@ -250,7 +304,7 @@ class _tallyMultiCompany {
             }
         }
 
-        // Process transaction tables
+        // iterate through Transaction table to extract modifed and added rows in Tally data
         if (flgIsTransactionChanged) {
             for (let i = 0; i < this.lstTableTransaction.length; i++) {
                 let activeTable = this.lstTableTransaction[i];
@@ -267,6 +321,86 @@ class _tallyMultiCompany {
                 logger.logMessage('  syncing table %s for %s - %s', targetTable, company.company_name, division.division_name);
             }
         }
+
+        if (flgIsMasterChanged) {
+            // process foreign key updates to derived table fields
+            logger.logMessage('  processing foreign key updates for %s - %s', company.company_name, division.division_name);
+            for (let i = 0; i < lstPrimaryTables.length; i++) {
+                let activeTable = lstPrimaryTables[i];
+                if (Array.isArray(activeTable.cascade_update) && activeTable.cascade_update.length)
+                    for (let j = 0; j < activeTable.cascade_update.length; j++) {
+                        let targetTable = activeTable.cascade_update[j].table;
+                        let targetField = activeTable.cascade_update[j].field;
+                        if (database.config.technology == 'mssql') {
+                            await database.executeNonQuery(`update t set t.${targetField} = s.name from ${targetTable} as t join ${activeTable.name} as s on s.guid = t._${targetField} where t.company_id = '${company.company_id}' and t.division_id = '${division.division_id}';`);
+                        }
+                        else if (database.config.technology == 'mysql') {
+                            await database.executeNonQuery(`update ${targetTable} as t join ${activeTable.name} as s on s.guid = t._${targetField} set t.${targetField} = s.name where t.company_id = '${company.company_id}' and t.division_id = '${division.division_id}';`);
+                        }
+                        else if (database.config.technology == 'postgres') {
+                            await database.executeNonQuery(`update ${targetTable} as t set ${targetField} = s.name from ${activeTable.name} as s where s.guid = t._${targetField} and t.company_id = '${company.company_id}' and t.division_id = '${division.division_id}';`);
+                        }
+                        else;
+                    }
+            }
+        }
+
+        if (flgIsTransactionChanged) {
+            //check if any Voucher Type is set to auto numbering
+            //automatic voucher number shifts voucher numbers of all subsequent date vouchers on insertion of in-between vouchers which requires updation
+            let countAutoNumberVouchers = await database.executeNonQuery(`select count(*) as c from mst_vouchertype where company_id = '${company.company_id}' and division_id = '${division.division_id}' and numbering_method like '%Auto%';`);
+            if (countAutoNumberVouchers) {
+
+                logger.logMessage('  processing voucher number updates for %s - %s', company.company_name, division.division_name);
+                await database.executeNonQuery('truncate table _vchnumber;');
+
+                //pull list of voucher numbers for all the vouchers
+                let activeTable = this.lstTableTransaction.filter(p => p.name == 'trn_voucher')[0];
+                let lstActiveTableFilter = activeTable.filters || [];
+                lstActiveTableFilter.push('$$IsEqual:($NumberingMethod:VoucherType:$VoucherTypeName):"Automatic"');
+                if (Array.isArray(activeTable.filters))
+                    activeTable.filters.splice(activeTable.filters.length - 1, 1); //remove AlterID filter
+                let tempTable: tableConfigYAML = {
+                    name: '',
+                    collection: activeTable.collection,
+                    fields: [
+                        {
+                            name: 'guid',
+                            field: 'Guid',
+                            type: 'text'
+                        },
+                        {
+                            name: 'voucher_number',
+                            field: 'VoucherNumber',
+                            type: 'text'
+                        }
+                    ],
+                    nature: '',
+                    filters: lstActiveTableFilter
+                };
+
+                await this.processReport('_vchnumber', tempTable, configTallyXML, company, division);
+                await database.bulkLoad(path.join(process.cwd(), `./csv/_vchnumber.data`), '_vchnumber', tempTable.fields.map(p => p.type)); //upload to temporary table
+                fs.unlinkSync(path.join(process.cwd(), `./csv/_vchnumber.data`)); //delete temporary file
+
+                //update voucher number with fresh copy
+                if (database.config.technology == 'mssql') {
+                    await database.executeNonQuery(`update t set t.voucher_number = s.voucher_number from trn_voucher as t join _vchnumber as s on s.guid = t.guid where t.company_id = '${company.company_id}' and t.division_id = '${division.division_id}';`);
+                }
+                else if (database.config.technology == 'mysql') {
+                    await database.executeNonQuery(`update trn_voucher as t join _vchnumber as s on s.guid = t.guid set t.voucher_number = s.voucher_number where t.company_id = '${company.company_id}' and t.division_id = '${division.division_id}';`);
+                }
+                else if (database.config.technology == 'postgres') {
+                    await database.executeNonQuery(`update trn_voucher as t set voucher_number = s.voucher_number from _vchnumber as s where s.guid = t.guid and t.company_id = '${company.company_id}' and t.division_id = '${division.division_id}';`);
+                }
+                else;
+            }
+        }
+
+        //erase rows for all the temporary calculation tables
+        await database.executeNonQuery('truncate table _diff ;');
+        await database.executeNonQuery('truncate table _delete ;');
+        await database.executeNonQuery('truncate table _vchnumber ;');
 
         // Update Last AlterID after successful incremental sync
         if (flgIsMasterChanged || flgIsTransactionChanged) {
